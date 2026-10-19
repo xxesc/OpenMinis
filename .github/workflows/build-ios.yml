@@ -8,7 +8,7 @@ on:
 jobs:
   build-ios:
     name: Build Minis iOS (Unsigned IPA)
-    runs-on: macos-14 # Apple Silicon M1/M2 Runner
+    runs-on: macos-26 # Apple Silicon, ships Xcode 26 (iOS 26 SDK)
     timeout-minutes: 90
 
     steps:
@@ -18,14 +18,11 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
-      - name: Select Xcode 16+
+      - name: Select Xcode 26
         run: |
-          echo "Available Xcode versions:"
-          ls -d /Applications/Xcode*
-          XCODE_PATH=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n 1)
-          if [ -z "$XCODE_PATH" ]; then
-            XCODE_PATH=$(ls -d /Applications/Xcode*.app | sort -V | tail -n 1)
-          fi
+          ls -d /Applications/Xcode_26*.app 2>/dev/null || true
+          XCODE_PATH=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$XCODE_PATH" ]; then XCODE_PATH=/Applications/Xcode.app; fi
           echo "Switching to $XCODE_PATH"
           sudo xcode-select -s "$XCODE_PATH"
           xcodebuild -version
