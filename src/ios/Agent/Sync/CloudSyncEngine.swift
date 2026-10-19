@@ -429,7 +429,9 @@ final class CloudSyncEngine: ObservableObject {
         self.sessionCacheDir = library.appendingPathComponent("MinisChat/sync_etag_cache")
         self.globalEtagCacheURL = library.appendingPathComponent("MinisChat/sync_etag_global.plist")
         try? FileManager.default.createDirectory(at: sessionCacheDir, withIntermediateDirectories: true)
-        self.isEnabled = UserDefaults.standard.bool(forKey: "cloudSync.enabled")
+        // [SelfSign-iCloud-Gate] 无 iCloud 容器授权时强制关闭 V1 同步，避免 CKContainer 抛异常闪退。
+        self.isEnabled = MinisICloudCapability.isAvailable
+            && UserDefaults.standard.bool(forKey: "cloudSync.enabled")
 
         let ud = UserDefaults.standard
         // Default all categories to true if never set

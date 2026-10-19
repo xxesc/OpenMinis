@@ -1,4 +1,5 @@
 import Foundation
+import Security
 
 /// Reads and writes PendingShare data to the App Group shared container.
 /// Compiled into both the main app target and the Share Extension target.
@@ -67,5 +68,24 @@ enum SharedContainerStore {
                 try? fm.removeItem(at: file)
             }
         }
+    }
+}
+
+
+/// [SelfSign-iCloud-Gate] 探测本 App 是否真的被授予 iCloud 容器权限。
+/// 自签构造的描述文件 `icloud-container-identifiers` 为空数组时，
+/// `CKContainer(identifier:)` 会抛 ObjC 异常（objc_exception_throw）直接闪退，
+/// 因此同步引擎必须先用它做门禁，无权限就整体停用。
+enum MinisICloudCapability {
+    static let containerIdentifier = "iCloud.com.openminis.app"
+
+    static var isAvailable: Bool {
+        guard let task = SecTaskCreateFromSelf(nil) else { return false }
+        guard let value = SecTaskCopyValueForEntitlement(
+            task,
+            "com.apple.developer.icloud-container-identifiers" as CFString,
+            nil
+        ) as? [String] else { return false }
+        return value.contains(containerIdentifier)
     }
 }

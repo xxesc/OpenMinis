@@ -42,6 +42,8 @@ enum SyncV2Bootstrap {
     /// Override via the `cloudSync.v2.enabled` UserDefaults key directly
     /// during development.
     static var isEnabled: Bool {
+        // [SelfSign-iCloud-Gate] 无 iCloud 容器授权（自签构建）时永不启用。
+        guard MinisICloudCapability.isAvailable else { return false }
         let key = "cloudSync.v2.enabled"
         if UserDefaults.standard.object(forKey: key) == nil {
             // Inherit from v1 if the user ever interacted with that
@@ -65,6 +67,11 @@ enum SyncV2Bootstrap {
     }
 
     static func setEnabled(_ enabled: Bool) {
+        // [SelfSign-iCloud-Gate] 无授权时忽略任何开启请求。
+        guard MinisICloudCapability.isAvailable else {
+            UserDefaults.standard.set(false, forKey: "cloudSync.v2.enabled")
+            return
+        }
         let prev = UserDefaults.standard.object(forKey: "cloudSync.v2.enabled") as? Bool ?? true
         UserDefaults.standard.set(enabled, forKey: "cloudSync.v2.enabled")
         logger.info("[SyncCore] v2 enabled flag set to \(enabled) (was \(prev))")
