@@ -18,6 +18,18 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
+      - name: Select Xcode 16+
+        run: |
+          echo "Available Xcode versions:"
+          ls -d /Applications/Xcode*
+          XCODE_PATH=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$XCODE_PATH" ]; then
+            XCODE_PATH=$(ls -d /Applications/Xcode*.app | sort -V | tail -n 1)
+          fi
+          echo "Switching to $XCODE_PATH"
+          sudo xcode-select -s "$XCODE_PATH"
+          xcodebuild -version
+
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
