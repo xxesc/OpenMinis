@@ -50,7 +50,24 @@ jobs:
           ls -lh src/ios/Resources/Companion/companion-host.html
           ls -lh src/ios/Resources/Companion/minis-companion.js
 
+      # ---- 缓存原生依赖产物（LAME / FFmpeg / iSH / Alpine / Rclone）----
+      - name: Restore Native Deps Cache
+        id: deps-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            deps/frameworks
+            deps/libs
+            deps/include
+            deps/resources
+            deps/lame-build
+            deps/rclone-build
+            deps/ffmpeg-6.1.2/build-ios
+            deps/ish/build-ios
+          key: native-deps-v1-${{ hashFiles('deps/*.sh') }}
+
       - name: Build Native Dependencies (LAME, FFmpeg, iSH, Alpine, Rclone)
+        if: steps.deps-cache.outputs.cache-hit != 'true'
         run: |
           chmod +x ./deps/*.sh
           ./deps/build_lame.sh
@@ -59,6 +76,30 @@ jobs:
           ./deps/prepare_alpine_rootfs.sh
           ./deps/build_rclone_ios.sh
 
+      - name: Save Native Deps Cache
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            deps/frameworks
+            deps/libs
+            deps/include
+            deps/resources
+            deps/lame-build
+            deps/rclone-build
+            deps/ffmpeg-6.1.2/build-ios
+            deps/ish/build-ios
+          key: native-deps-v1-${{ hashFiles('deps/*.sh') }}
+
+      # ---- 缓存 DerivedData：Swift 增量编译，只重编改动文件 ----
+      - name: Restore DerivedData Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: build/dd
+          key: dd-${{ github.sha }}
+          restore-keys: |
+            dd-
+
       - name: Build iOS Archive (Unsigned)
         run: |
           xcodebuild archive \
@@ -66,7 +107,9 @@ jobs:
             -scheme Minis \
             -destination "generic/platform=iOS" \
             -archivePath build/Minis.xcarchive \
+            -derivedDataPath build/dd \
             -configuration Release \
+            COMPILER_INDEX_STORE_ENABLE=NO \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
