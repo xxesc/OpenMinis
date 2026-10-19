@@ -13,10 +13,23 @@ enum SharedContainerStore {
 
     /// Directory in the shared container for transferring attachment files.
     static var sharedFileDirectory: URL? {
-        FileManager.default
-            .containerURL(forSecurityApplicationGroupIdentifier: appGroupID)?
-            .appendingPathComponent("ShareExtension", isDirectory: true)
+        containerURL.appendingPathComponent("ShareExtension", isDirectory: true)
     }
+
+    /// [SelfSign-Fallback] 自签构建没有 `group.com.openminis.app` 授权时，
+    /// `containerURL(forSecurityApplicationGroupIdentifier:)` 返回 nil。
+    /// 官方代码在多处以 `!` 强制解包，会启动即崩。这里统一兜底到 App 自己的
+    /// Application Support 目录，保证沙盒根、memory/skills/shared 仍可读写。
+    static var containerURL: URL {
+        if let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID) {
+            return url
+        }
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("MinisContainer", isDirectory: true)
+        try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        return base
+    }
+
 
     // MARK: - Write (called by Share Extension)
 
