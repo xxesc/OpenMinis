@@ -8,7 +8,7 @@ on:
 jobs:
   build-ios:
     name: Build Minis iOS (Unsigned IPA)
-    runs-on: macos-26 # Apple Silicon, ships Xcode 26 (iOS 26 SDK)
+    runs-on: macos-15 # Apple Silicon, ships Xcode 26.3 (iOS 26 SDK), much shorter queue time
     timeout-minutes: 90
 
     steps:
