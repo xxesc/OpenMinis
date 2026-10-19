@@ -2190,6 +2190,7 @@ struct AIChatView: View {
         let sessionTitle: String? = (titlePillSession?.title?.trimmingCharacters(in: .whitespacesAndNewlines))
             .flatMap { $0.isEmpty ? nil : $0 }
         return NavTitleKey(
+            companionState: vm.currentCompanionState,
             sessionTitle: sessionTitle,
             canEditTitle: titlePillSession != nil,
             soulName: soulName,
@@ -2271,61 +2272,31 @@ struct AIChatView: View {
         // total height — the thing the May-18/19/20 clip saga fought — is
         // unchanged and the top-clip fix does not regress.
         return VStack(spacing: legacyLayout ? -3 : -2) {
-            Button {
+                        Button {
                 if let s = titlePillSession { titlePillEditSession = s }
             } label: {
-                // [T-navbar-title-size 2026-05-18] iOS 18 and below render
-                // the principal toolbar in a tighter band than iOS 26's
-                // liquid-glass navbar — long CJK titles (e.g. a
-                // "Download and merge Twitter video" style CJK string)
-                // overflowed at 16pt on iPhone Mini/SE and
-                // wrapped under the trailing "…" button. Drop one point
-                // on legacy iOS so they fit cleanly; keep the iOS 26
-                // size unchanged.
-                Text(sessionTitle ?? soulName)
-                    // [T-navbar-title-size 2026-05-18 / -19 / -20] iOS 16-18
-                    // principal toolbar is a fixed ~44pt band sitting just
-                    // below the status bar with very little reserved padding.
-                    // A 3-line title stack at 16pt/.caption2/9pt overflowed
-                    // the band's top against the status-bar / Dynamic Island
-                    // cutoff (a tall CJK glyph clipped its top, then "?"
-                    // appeared because the glyph rect was outside the navbar
-                    // viewport). Iterative tightening:
-                    //   2026-05-18: 16 → 15pt + `padding(.top, 2)`
-                    //   2026-05-19: 15 → 13.5pt + `minimumScaleFactor(0.85)`
-                    //                 + `fixedSize(...)` + `padding(.top, 3)`
-                    //   2026-05-20: 13.5 → 13pt + drop padding(.top) to 0 +
-                    //                 outer VStack spacing -6 → -8. Earlier
-                    //                 attempts to push the stack DOWN with
-                    //                 more padding.top failed because SwiftUI
-                    //                 vertically CENTERS the .principal item
-                    //                 in the navbar — extra height clips
-                    //                 BOTH top and bottom equally, not just
-                    //                 the bottom. Net result: shrink the
-                    //                 total stack height instead, so it
-                    //                 naturally has breathing room above
-                    //                 and below.
-                    // iOS 26 path unchanged (16pt works inside liquid-glass).
-                    .font(.system(size: legacyLayout ? 13 : 16, weight: .semibold))
-                    .minimumScaleFactor(legacyLayout ? 0.85 : 1.0)
-                    .foregroundStyle(ChatColors.primaryText)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .fixedSize(horizontal: false, vertical: true)
-                    // [NavTitleTopClip 2026-07-23] Was 4pt on iOS 26 to shove
-                    // the title into the visible band, but combined with the
-                    // now-centered 46pt frame it pushed the title's top past
-                    // the clip line again. 4 → 2: the centered frame already
-                    // positions the stack correctly, and 2pt keeps a little
-                    // breathing room above the semibold cap height without
-                    // re-introducing the top crop.
-                    .padding(.top, legacyLayout ? 0 : 2)
-                    .onReceive(NotificationCenter.default.publisher(for: .soulMdChanged)) { _ in
-                        let n = SoulStore.cachedMetadata.name
-                        soulName = n.isEmpty ? "Minis" : n
-                    }
+                HStack(spacing: 6) {
+                    CompanionAvatarView(state: vm.currentCompanionState, size: 22)
+                        .frame(width: 22, height: 22)
+                        .clipShape(Circle())
+                    
+                    Text(sessionTitle ?? soulName)
+                        .font(.system(size: legacyLayout ? 13 : 16, weight: .semibold))
+                        .minimumScaleFactor(legacyLayout ? 0.85 : 1.0)
+                        .foregroundStyle(ChatColors.primaryText)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, legacyLayout ? 0 : 2)
+                        .onReceive(NotificationCenter.default.publisher(for: .soulMdChanged)) { _ in
+                            let n = SoulStore.cachedMetadata.name
+                            soulName = n.isEmpty ? "Minis" : n
+                        }
+                }
             }
             .buttonStyle(.plain)
+            .disabled(!canEditTitle)
+.buttonStyle(.plain)
             .disabled(!canEditTitle)
 
             // [T-navbar-group-provider-gap 2026-07-25] Legacy row gap 1 → -1:
@@ -5424,6 +5395,7 @@ private struct EquatableByValue<Key: Equatable, Content: View>: View, Equatable 
 /// bar every tick, and UIKit refreshes the presented menu when bar items are
 /// re-set (items shifting under the user's finger → mis-taps).
 private struct NavTitleKey: Equatable {
+    let companionState: String
     let sessionTitle: String?
     let canEditTitle: Bool
     let soulName: String
@@ -7005,4 +6977,75 @@ final class ComposerActionChannel {
     /// an early arrow/tab key keeps its default text-view behaviour).
     @discardableResult
     func send(_ action: Action) -> Bool { handler?(action) ?? false }
+}
+
+
+// MARK: - [Minis Companion Avatar Native View]
+import WebKit
+
+public struct CompanionAvatarView: UIViewRepresentable {
+    public let state: String
+    public let size: CGFloat
+    public let interactive: Bool
+    
+    public init(state: String = "idle", size: CGFloat = 36, interactive: Bool = false) {
+        self.state = state
+        self.size = size
+        self.interactive = interactive
+    }
+    
+    public func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    public func makeUIView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.allowsInlineMediaPlayback = true
+        configuration.mediaTypesRequiringUserActionForPlayback = []
+        
+        let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: size, height: size), configuration: configuration)
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = .clear
+        webView.scrollView.isScrollEnabled = false
+        webView.scrollView.bounces = false
+        webView.isUserInteractionEnabled = interactive
+        
+        webView.scrollView.showsVerticalScrollIndicator = false
+        webView.scrollView.showsHorizontalScrollIndicator = false
+        
+        context.coordinator.webView = webView
+        
+        if let bundlePath = Bundle.main.url(forResource: "companion-host", withExtension: "html") {
+            webView.loadFileURL(bundlePath, allowingReadAccessTo: bundlePath.deletingLastPathComponent())
+        }
+        
+        return webView
+    }
+    
+    public func updateUIView(_ webView: WKWebView, context: Context) {
+        if context.coordinator.currentState != state {
+            context.coordinator.currentState = state
+            let escapedState = state.replacingOccurrences(of: "'", with: "\\'")
+            let js = "window.setCompanionState && window.setCompanionState('\(escapedState)');"
+            webView.evaluateJavaScript(js, completionHandler: nil)
+        }
+    }
+    
+    public class Coordinator: NSObject, WKNavigationDelegate {
+        var parent: CompanionAvatarView
+        weak var webView: WKWebView?
+        var currentState: String = ""
+        
+        init(_ parent: CompanionAvatarView) {
+            self.parent = parent
+            self.currentState = parent.state
+        }
+        
+        public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            let escapedState = currentState.replacingOccurrences(of: "'", with: "\\'")
+            let js = "window.setCompanionState && window.setCompanionState('\(escapedState)');"
+            webView.evaluateJavaScript(js, completionHandler: nil)
+        }
+    }
 }

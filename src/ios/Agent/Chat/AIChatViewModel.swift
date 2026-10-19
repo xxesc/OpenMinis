@@ -847,6 +847,7 @@ final class AIChatViewModel: ObservableObject, SpeechControlling {
                 // stay paused for the grace window, then a single catch-up sync
                 // runs on release (60s timer / leave session / background).
                 beginPostStopSyncHold()
+                triggerDeliveredMascotAnimation()
                 StreamingHangLogger.shared.release(reason: "isProcessing=false session=\(sessionId ?? "nil")")
                 // [T-p0-programmatic-prompt] A silent (programmatic) turn ends
                 // here whether it completed or was cancelled; never let the

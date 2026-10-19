@@ -375,3 +375,76 @@ extension AIChatViewModel {
     }
 
 }
+
+// MARK: - [Minis Companion Mascot State Mapping]
+private var companionDeliveredUntilKey: UInt8 = 0
+
+extension AIChatViewModel {
+    public var currentCompanionState: String {
+        if isProcessing {
+            // 1. 错误检测：如果有失败的 toolStatus
+            if let lastAssistant = messages.last(where: { $0.role == .assistant }) {
+                let hasError = lastAssistant.blocks.contains { block in
+                    if let status = block.toolStatus {
+                        if case .failed = status { return true }
+                    }
+                    return false
+                }
+                if hasError { return "error" }
+            }
+            
+            // 2. 活跃工具检测
+            let activeTools = messages
+                .filter { $0.role == .assistant && !$0.isCompactedHistory }
+                .flatMap { $0.blocks }
+                .filter { block in
+                    if let status = block.toolStatus {
+                        if case .running = status { return true }
+                        if case .streaming = status { return true }
+                    }
+                    return false
+                }
+            
+            if let activeBlock = activeTools.last {
+                if case .delegateTool = activeBlock.kind {
+                    return "report"
+                }
+                return "inspecting"
+            }
+            
+            // 3. 思考状态检测
+            if let lastAssistant = messages.last(where: { $0.role == .assistant }),
+               let lastBlock = lastAssistant.blocks.last,
+               lastBlock.kind == .thinking {
+                return "thinking"
+            }
+            
+            // 4. 正在流式生成文本
+            return "generating"
+        }
+        
+        // 未在处理时：检查是否处于交付撒花窗口
+        if let deliveredUntil = companionDeliveredUntil, Date() < deliveredUntil {
+            return "delivered"
+        }
+        
+        return "idle"
+    }
+    
+    private var companionDeliveredUntil: Date? {
+        get { objc_getAssociatedObject(self, &companionDeliveredUntilKey) as? Date }
+        set { objc_setAssociatedObject(self, &companionDeliveredUntilKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
+    }
+    
+    public func triggerDeliveredMascotAnimation(duration: TimeInterval = 5.0) {
+        self.companionDeliveredUntil = Date().addingTimeInterval(duration)
+        self.objectWillChange.send()
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
+            guard let self = self else { return }
+            if self.companionDeliveredUntil != nil && Date() >= self.companionDeliveredUntil! {
+                self.companionDeliveredUntil = nil
+                self.objectWillChange.send()
+            }
+        }
+    }
+}
