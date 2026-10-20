@@ -2271,15 +2271,23 @@ struct AIChatView: View {
         // 4 → 1 and group vertical padding 3 → 2 on legacy), so the stack's
         // total height — the thing the May-18/19/20 clip saga fought — is
         // unchanged and the top-clip fix does not regress.
-        return VStack(spacing: legacyLayout ? -3 : -2) {
-                        Button {
-                if let s = titlePillSession { titlePillEditSession = s }
+        return HStack(alignment: .center, spacing: 10) {
+            // [Minis Companion 42pt 饱满大头像]：近 4 倍面积，眼神、眨眼、手持感叹号牌与 3D 彩带一清二楚！
+            Button {
+                // 点击头像触发可爱欢呼与撒花动效互动
+                vm.triggerDeliveredMascotAnimation(duration: 4.0)
             } label: {
-                HStack(spacing: 6) {
-                    CompanionAvatarView(state: vm.currentCompanionState, size: 22)
-                        .frame(width: 22, height: 22)
-                        .clipShape(Circle())
-                    
+                CompanionAvatarView(state: vm.currentCompanionState, size: 42)
+                    .frame(width: 42, height: 42)
+                    .clipShape(Circle())
+                    .shadow(color: Color.black.opacity(0.12), radius: 3, x: 0, y: 1)
+            }
+            .buttonStyle(.plain)
+
+            VStack(alignment: .leading, spacing: legacyLayout ? -3 : -2) {
+                Button {
+                    if let s = titlePillSession { titlePillEditSession = s }
+                } label: {
                     Text(sessionTitle ?? soulName)
                         .font(.system(size: legacyLayout ? 13 : 16, weight: .semibold))
                         .minimumScaleFactor(legacyLayout ? 0.85 : 1.0)
@@ -2293,23 +2301,11 @@ struct AIChatView: View {
                             soulName = n.isEmpty ? "Minis" : n
                         }
                 }
-            }
-            .buttonStyle(.plain)
-            .disabled(!canEditTitle)
-.buttonStyle(.plain)
-            .disabled(!canEditTitle)
+                .buttonStyle(.plain)
+                .disabled(!canEditTitle)
 
-            // [T-navbar-group-provider-gap 2026-07-25] Legacy row gap 1 → -1:
-            // on iOS 16-18 the provider·model line (row 2) sat flush against
-            // the navbar band's bottom edge (field screenshot: group name and
-            // row 2 had a visibly larger gap than row 2 had bottom clearance).
-            // Tightening ONLY the group↔provider gap moves row 2 up inside
-            // the band, giving the last line breathing room from the bottom.
-            // -1 still leaves ~2pt visual space (caption2's descender zone +
-            // the 9pt row's cap headroom); the calibrated title↔group overlap
-            // (outer -3) and the group pill's vertical padding are untouched.
-            // iOS 26 keeps spacing 1 — the liquid-glass band has no crowding.
-            VStack(spacing: legacyLayout ? -1 : 1) {
+                // [T-navbar-group-provider-gap 2026-07-25] Legacy row gap 1 → -1:
+                VStack(alignment: .leading, spacing: legacyLayout ? -1 : 1) {
                 HStack(spacing: 4) {
                     Button {
                         showModelPicker = true
@@ -2468,6 +2464,7 @@ struct AIChatView: View {
                 }
             }
         }
+    }
         // [T-navbar-title-clip 2026-05-21] Nudge the whole legacy title
         // stack down so the first row clears the status-bar / Dynamic
         // Island band. iOS 16-18 baseline-aligns the `.principal` item
@@ -7015,6 +7012,7 @@ public struct CompanionAvatarView: UIViewRepresentable {
         webView.scrollView.showsHorizontalScrollIndicator = false
         
         context.coordinator.webView = webView
+        webView.navigationDelegate = context.coordinator
         
         if let bundlePath = Bundle.main.url(forResource: "companion-host", withExtension: "html") {
             webView.loadFileURL(bundlePath, allowingReadAccessTo: bundlePath.deletingLastPathComponent())
