@@ -104,6 +104,7 @@
 		E52000009 /* AnthropicModelsAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = E52000018 /* AnthropicModelsAPI.swift */; };
 		E53000001 /* AIChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E53000011 /* AIChatViewModel.swift */; };
 		E53000002 /* AIChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E53000012 /* AIChatView.swift */; };
+		E5CCS0001 /* ComposerControlSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5CCS0011 /* ComposerControlSheet.swift */; };
 		E53000004 /* ChatStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E53000014 /* ChatStore.swift */; };
 		E53000005 /* UsageStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E53000015 /* UsageStatsView.swift */; };
 		E53000006 /* CacheKeepAliveManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E53000016 /* CacheKeepAliveManager.swift */; };
@@ -786,6 +787,7 @@
 		E52000018 /* AnthropicModelsAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnthropicModelsAPI.swift; sourceTree = "<group>"; };
 		E53000011 /* AIChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChatViewModel.swift; sourceTree = "<group>"; };
 		E53000012 /* AIChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChatView.swift; sourceTree = "<group>"; };
+		E5CCS0011 /* ComposerControlSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerControlSheet.swift; sourceTree = "<group>"; };
 		E53000014 /* ChatStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStore.swift; sourceTree = "<group>"; };
 		E53000015 /* UsageStatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageStatsView.swift; sourceTree = "<group>"; };
 		E53000016 /* CacheKeepAliveManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheKeepAliveManager.swift; sourceTree = "<group>"; };
@@ -2278,6 +2280,7 @@
 			isa = PBXGroup;
 			children = (
 				E53000012 /* AIChatView.swift */,
+				E5CCS0011 /* ComposerControlSheet.swift */,
 				E5F200011 /* MarkdownPrepRegex.swift */,
 				E5F200012 /* MinisMediaViews.swift */,
 				E5F200013 /* AssistantBlockView.swift */,
@@ -2891,6 +2894,7 @@
 				E5VMC0007 /* AIChatViewModel+ConcurrentTools.swift in Sources */,
 				E5LD00001 /* ToolLoopDetector.swift in Sources */,
 				E53000002 /* AIChatView.swift in Sources */,
+				E5CCS0001 /* ComposerControlSheet.swift in Sources */,
 				E5CAL0001 /* CookieAuditLogger.swift in Sources */,
 				E5F200001 /* MarkdownPrepRegex.swift in Sources */,
 				E5F200002 /* MinisMediaViews.swift in Sources */,
@@ -3353,7 +3357,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -3377,7 +3381,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -3398,7 +3402,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -3431,7 +3435,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -3592,7 +3596,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Minis.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_ASSET_PATHS = "\"Preview Content\"";
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
@@ -3646,7 +3650,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Minis.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_ASSET_PATHS = "\"Preview Content\"";
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;

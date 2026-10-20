@@ -384,7 +384,7 @@ struct AIChatView: View {
     /// True while unsent share-extension content is in the input bar.
     @State private var hasInjectedShareContent = false
     @State private var showModelPicker = false
-    @State private var showThinkingLevelSheet = false
+    @State private var showComposerControlSheet = false
     @State private var showSessionSkills = false
     @State private var showSessionMCPs = false
     @State private var showSessionMemory = false
@@ -464,8 +464,6 @@ struct AIChatView: View {
     /// `lockStore.isVisuallyLocked(sid)` rather than recomputing the
     /// 4-guard expression independently).
     @ObservedObject private var lockStore = SessionLockStore.shared
-    /// Opacity for the fallback capsule highlight (animated 3× pulse on model switch).
-    @State private var fallbackPulseOpacity: Double = 0
 
     /// Snapshot of the current session's title + category, refreshed when the
     /// session updates (e.g. auto-generated title arrives). Nil until first load.
@@ -1056,6 +1054,9 @@ struct AIChatView: View {
             BrowserSheetView(pool: vm.browserTabPool, isAgentBusy: vm.browserTabPool.isAgentBrowsing, onTakeover: {
                 vm.browserTakeoverActive = true
             })
+        }
+        .sheet(isPresented: $showComposerControlSheet) {
+            ComposerControlSheet(vm: vm)
         }
         .sheet(isPresented: $showModelPicker) {
             NavigationStack {
@@ -2185,8 +2186,6 @@ struct AIChatView: View {
         #if DEBUG
         NavbarEvalStats.toolbarPass += 1
         #endif
-        let display = SessionModelDisplay(store: configStore, draftGroupId: vm.initialGroupId)
-        let resolved = display.resolvedDetail(for: vm.sessionId)
         let sessionTitle: String? = (titlePillSession?.title?.trimmingCharacters(in: .whitespacesAndNewlines))
             .flatMap { $0.isEmpty ? nil : $0 }
         return NavTitleKey(
@@ -2194,31 +2193,11 @@ struct AIChatView: View {
             sessionTitle: sessionTitle,
             canEditTitle: titlePillSession != nil,
             soulName: soulName,
-            modelName: display.displayName(for: vm.sessionId),
-            isGroupBound: display.isGroupBound(for: vm.sessionId),
-            showFastBolt: codexFastModeEnabled && activeModelSupportsFastMode,
-            resolvedText: resolved.map { "\($0.providerLabel) · \($0.modelName)" },
-            hasBinding: vm.sessionId != nil && configStore.binding(for: vm.sessionId!) != nil,
-            hasProviders: !configStore.instances.isEmpty,
-            showThinkingBadge: !vm.availableThinkingLevels.isEmpty
-                && (vm.currentThinkingLevel.isEnabled || vm.currentModelSupportsReasoning),
-            thinkingLevelName: vm.currentThinkingLevel.displayName,
-            fallbackTrigger: vm.fallbackTrigger,
-            fallbackPulse: fallbackPulseOpacity,
             titleLocked: titleIsVisuallyLocked
         )
     }
 
     private var titleView: some View {
-        let display = SessionModelDisplay(store: configStore, draftGroupId: vm.initialGroupId)
-        let modelName = display.displayName(for: vm.sessionId)
-        let isGroupBound = display.isGroupBound(for: vm.sessionId)
-        let resolved = display.resolvedDetail(for: vm.sessionId)
-        let hasBinding = vm.sessionId != nil && configStore.binding(for: vm.sessionId!) != nil
-        let hasProviders = !configStore.instances.isEmpty
-
-        let isAuthed = hasBinding || hasProviders
-
         let legacyLayout = !ProcessInfo.processInfo.isiOSAppOnMac && {
             if #available(iOS 26, *) { return false }
             return true
@@ -2234,43 +2213,6 @@ struct AIChatView: View {
             .flatMap { $0.isEmpty ? nil : $0 }
         let canEditTitle = titlePillSession != nil
 
-        // [NavTitleClip 2026-05-16] On iOS 26 the principal toolbar
-        // container clipped the top of the title and the bottom of the
-        // resolved-detail subtitle when a 3-line stack was used. Adding
-        // a small top inset shifts the whole VStack downward into the
-        // visible band; the toolbar happily renders it without
-        // truncation. Legacy (iOS < 26) layout already used a -6 stack
-        // spacing trick and doesn't need the inset.
-        //
-        // [NavTitleDescenderClip 2026-05-18] Tighten the outer VStack
-        // from 0 to -2pt on iOS 26 so the three rows pack more closely
-        // and free up vertical room for descenders ("g", "p", "y") on
-        // the resolved-detail line (e.g. "Fake Hang 1" was clipping the
-        // final "1" / "g" baseline at the navbar bottom). -2pt is the
-        // sweet spot: overlap is invisible at 9pt body text but recovers
-        // ~2pt of descender clearance below the third row.
-        // [T-navbar-title-clip 2026-05-21] After shrinking the legacy
-        // title to 13pt the stack was tall enough to clear the top of
-        // the navbar but visually it now sat *too high* — the title
-        // row clipped at the status-bar edge while the model-name row
-        // had a tall empty gap below it before the navbar's bottom
-        // separator. Root cause: SwiftUI doesn't strictly center the
-        // `.principal` item on iOS 16-18; it baseline-aligns to the
-        // navigation bar's title text baseline. Padding the OUTER
-        // stack downward (`.padding(.top, …)` on the VStack itself)
-        // pushes the whole title region down within the band without
-        // changing its rendered height. Legacy-only — iOS 26 already
-        // sits correctly in the liquid-glass band.
-        // [T-navbar-title-model-gap 2026-07-18] Legacy spacing -8 → -3. The
-        // 2026-05-20 tightening overlapped row 2 into the title's line box by
-        // 8pt — more than the 13pt font's entire descender zone (~3.1pt), so
-        // any title containing g/p/y/z visually fused with the model pill
-        // (only descender-less titles like "Minis" hid it). -3 keeps a ~2pt
-        // visible gap for descender titles. HEIGHT-NEUTRAL: the 5pt spent
-        // here is reclaimed inside row 2 (provider-row bottom clearance
-        // 4 → 1 and group vertical padding 3 → 2 on legacy), so the stack's
-        // total height — the thing the May-18/19/20 clip saga fought — is
-        // unchanged and the top-clip fix does not regress.
         return HStack(alignment: .center, spacing: 10) {
             // [Minis Companion 42pt 饱满大头像]：近 4 倍面积，眼神、眨眼、手持感叹号牌与 3D 彩带一清二楚！
             Button {
@@ -2284,254 +2226,28 @@ struct AIChatView: View {
             }
             .buttonStyle(.plain)
 
-            VStack(alignment: .leading, spacing: legacyLayout ? -3 : -2) {
-                Button {
-                    if let s = titlePillSession { titlePillEditSession = s }
-                } label: {
-                    Text(sessionTitle ?? soulName)
-                        .font(.system(size: legacyLayout ? 13 : 16, weight: .semibold))
-                        .minimumScaleFactor(legacyLayout ? 0.85 : 1.0)
-                        .foregroundStyle(ChatColors.primaryText)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, legacyLayout ? 0 : 2)
-                        .onReceive(NotificationCenter.default.publisher(for: .soulMdChanged)) { _ in
-                            let n = SoulStore.cachedMetadata.name
-                            soulName = n.isEmpty ? "Minis" : n
-                        }
-                }
-                .buttonStyle(.plain)
-                .disabled(!canEditTitle)
-
-                // [T-navbar-group-provider-gap 2026-07-25] Legacy row gap 1 → -1:
-                VStack(alignment: .leading, spacing: legacyLayout ? -1 : 1) {
-                HStack(spacing: 4) {
-                    Button {
-                        showModelPicker = true
-                    } label: {
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(isAuthed ? Color.green : Color.orange)
-                                .frame(width: 6, height: 6)
-                            if isGroupBound {
-                                Image(systemName: "square.stack.3d.up")
-                                    .font(.system(size: 8))
-                                    .foregroundStyle(ChatColors.tertiaryText)
-                            }
-                            Text(modelName)
-                                .font(.caption2)
-                                .foregroundStyle(ChatColors.secondaryText)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 8, weight: .semibold))
-                                .foregroundStyle(ChatColors.tertiaryText)
-                        }
-                        .layoutPriority(-1)
+            Button {
+                if let s = titlePillSession { titlePillEditSession = s }
+            } label: {
+                Text(sessionTitle ?? soulName)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(ChatColors.primaryText)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .onReceive(NotificationCenter.default.publisher(for: .soulMdChanged)) { _ in
+                        let n = SoulStore.cachedMetadata.name
+                        soulName = n.isEmpty ? "Minis" : n
                     }
-                    .buttonStyle(.plain)
-                    // [T-ios-voiceover-labels] This label is assembled from a
-                    // status dot, an optional group glyph, the model name and a
-                    // chevron. Left alone VoiceOver reads those as disconnected
-                    // fragments ("square stack 3d up", "chevron down"), so
-                    // combine the row into one element and state what it is.
-                    // The connection state and group binding are carried as the
-                    // VALUE rather than folded into the label, so VoiceOver
-                    // keeps them distinguishable from the control's name.
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(Text("Model", comment: "VoiceOver label for the model picker button"))
-                    .accessibilityValue(Text(
-                        isGroupBound
-                            ? (isAuthed
-                                ? AppLocalized("\(modelName), group, signed in", comment: "VoiceOver value: model picker, group-bound, authenticated")
-                                : AppLocalized("\(modelName), group, not signed in", comment: "VoiceOver value: model picker, group-bound, not authenticated"))
-                            : (isAuthed
-                                ? AppLocalized("\(modelName), signed in", comment: "VoiceOver value: model picker, authenticated")
-                                : AppLocalized("\(modelName), not signed in", comment: "VoiceOver value: model picker, not authenticated"))
-                    ))
-                    .accessibilityHint(Text("Opens the model picker", comment: "VoiceOver hint for the model picker button"))
-                    .accessibilityAddTraits(.isButton)
-                }
-
-                if let detail = resolved {
-                    // Row 2: "provider · model" + the thinking-level badge as a
-                    // SEPARATE tappable sibling (not nested in the model-picker
-                    // Button) so the badge opens ThinkingLevelSheetView while the
-                    // text still opens the model picker — mirroring how row 1's
-                    // model-name Button and badge were laid out. The model name
-                    // truncates first (layoutPriority(-1) + lineLimit(1)); the
-                    // badge keeps its intrinsic size and always shows in full.
-                    HStack(spacing: 4) {
-                        // [T-codex-fast-mode] Circular-background ⚡ badge in
-                        // front of the resolved model line (row 3) while Fast
-                        // Mode is active (Codex OAuth only). User-requested
-                        // placement: this row names the actual model; row 2
-                        // may show a group name instead.
-                        if codexFastModeEnabled && activeModelSupportsFastMode {
-                            // Sized to the row's 9pt text cap height so the
-                            // badge reads as an inline glyph, not a button.
-                            Image(systemName: "bolt.fill")
-                                .font(.system(size: 5, weight: .bold))
-                                .foregroundStyle(.white)
-                                .frame(width: 9, height: 9)
-                                .background(Circle().fill(Color.orange))
-                                // Match the row text's descender clearance so
-                                // the badge centers on the same visual band.
-                                .padding(.bottom, legacyLayout ? 1 : 4)
-                        }
-                        Button {
-                            showModelPicker = true
-                        } label: {
-                            Text("\(detail.providerLabel) · \(detail.modelName)")
-                                .font(.system(size: 9))
-                                .foregroundStyle(ChatColors.secondaryText)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                                // [NavTitleClip 2026-05-16] Reserve clearance
-                                // under the resolved-detail line so the final
-                                // glyph descenders ("g","p","y") don't touch
-                                // the navbar's bottom safe-area cutoff on
-                                // iOS 26. 2 → 4pt: 2 wasn't enough when text
-                                // included descenders ("Fake Hang 1" clipped
-                                // the lowered "1" stroke).
-                                // [T-navbar-title-model-gap] Legacy needs only
-                                // 1pt — the 4pt clearance is an iOS 26
-                                // liquid-glass-band requirement; on 16-18 it
-                                // was pure height waste, now traded into the
-                                // title→model gap (see the outer VStack).
-                                .padding(.bottom, legacyLayout ? 1 : 4)
-                                // Force vertical sizing to fit the full
-                                // glyph including descender so the line's
-                                // own frame doesn't crop before the navbar
-                                // gets a chance to lay it out.
-                                .fixedSize(horizontal: false, vertical: true)
-                                .layoutPriority(-1)
-                        }
-                        .buttonStyle(.plain)
-                        // Show the badge whenever thinking is enabled, and ALSO
-                        // when it's Off but the active model supports deep
-                        // thinking — the icon + "Off" pill is then a discoverable
-                        // entry point for turning it on (tap opens the level
-                        // sheet). The Off pill is gated on
-                        // `currentModelSupportsReasoning` so non-reasoning models
-                        // don't grow a dead toggle; an enabled level still shows
-                        // unconditionally (user may have opted in on an
-                        // unknown-capability model).
-                        if !vm.availableThinkingLevels.isEmpty,
-                           vm.currentThinkingLevel.isEnabled || vm.currentModelSupportsReasoning {
-                            thinkingLevelBadge
-                                .fixedSize()
-                                // Match the model-name line's descender
-                                // clearance so the badge sits on the same
-                                // baseline band and isn't clipped at the
-                                // navbar's bottom cutoff.
-                                // [T-navbar-title-model-gap] Match the
-                                // provider text's legacy clearance.
-                                .padding(.bottom, legacyLayout ? 1 : 4)
-                        }
-                    }
-                }
             }
-            .padding(.horizontal, 8)
-            // [T-navbar-title-model-gap] 3 → 2 on legacy: part of the
-            // height-neutral trade that funds the wider title→model gap.
-            .padding(.vertical, legacyLayout ? 2 : 3)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.red.opacity(0.35 * fallbackPulseOpacity))
-            )
-            .onChange(of: vm.fallbackTrigger) { _ in
-                // 3× pulse: fade in then out, repeated 3 times
-                fallbackPulseOpacity = 0
-                withAnimation(.easeInOut(duration: 0.35)) {
-                    fallbackPulseOpacity = 1
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                    withAnimation(.easeInOut(duration: 0.35)) { fallbackPulseOpacity = 0 }
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
-                    withAnimation(.easeInOut(duration: 0.35)) { fallbackPulseOpacity = 1 }
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.05) {
-                    withAnimation(.easeInOut(duration: 0.35)) { fallbackPulseOpacity = 0 }
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
-                    withAnimation(.easeInOut(duration: 0.35)) { fallbackPulseOpacity = 1 }
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.75) {
-                    withAnimation(.easeInOut(duration: 0.35)) { fallbackPulseOpacity = 0 }
-                }
-            }
+            .buttonStyle(.plain)
+            .disabled(!canEditTitle)
         }
-    }
-        // [T-navbar-title-clip 2026-05-21] Nudge the whole legacy title
-        // stack down so the first row clears the status-bar / Dynamic
-        // Island band. iOS 16-18 baseline-aligns the `.principal` item
-        // to the toolbar title baseline — adding top padding on the
-        // OUTER stack shifts its rendered position downward without
-        // resizing any individual row. iOS 26 leaves at 0 (liquid
-        // glass centers correctly).
-        .padding(.top, legacyLayout ? 6 : 0)
-        // iOS 26+: fix height to match liquid-glass navbar; older OS: let it size naturally
+        .padding(.top, legacyLayout ? 2 : 0)
         .modifier(NavTitleFrameModifier())
-        // [T-navbar-title-fontsize] Lock the entire principal-toolbar
-        // title stack to the standard (.large) Dynamic Type size. Users
-        // with system / app font scaling cranked up were having the
-        // model name + "provider · model" subtitle overflow the navbar
-        // band and clip. The numeric sizes used above (16/.caption2/9)
-        // still scale with Dynamic Type by default; clamping the
-        // environment here freezes them at the design baseline without
-        // having to rewrite every Text modifier individually.
         .dynamicTypeSize(.large)
-        // Blur the title (and model/provider subtitle) while the session
-        // is locked, mirroring the chat body's SessionLockGateOverlay.
-        // `SessionLockStore.isVisuallyLocked` is the single source of
-        // truth — the same helper drives the gate overlay and the chat
-        // list row, so all three sites lock and unlock in lockstep.
         .blur(radius: titleIsVisuallyLocked ? 8 : 0)
         .allowsHitTesting(!titleIsVisuallyLocked)
         .animation(.easeInOut(duration: 0.15), value: titleIsVisuallyLocked)
-    }
-
-    @ViewBuilder
-    private var thinkingLevelBadge: some View {
-        let level = vm.currentThinkingLevel
-        // Sits on nav-bar row 2 (the 9pt "provider · model" line). Kept a
-        // touch smaller than that text (8pt / 6px icon) so it stays the most
-        // compact label in the title and never larger than the "is thinking…"
-        // intensity pill in the message list.
-        //
-        // Also rendered when the level is Off (reasoning-capable model with
-        // thinking disabled): the pill then reads icon + "Off" as a tap target
-        // for enabling deep thinking. Dim the icon in that state — matches the
-        // 0.4 Off-row convention in ThinkingLevelSheetView.
-        HStack(spacing: 2) {
-            Image("ThinkingIcon")
-                .resizable()
-                .frame(width: 6, height: 6)
-                .opacity(level.isEnabled ? 1.0 : 0.4)
-            Text(level.displayName)
-                .font(.system(size: 8, weight: .medium))
-        }
-        .foregroundStyle(ChatColors.secondaryText)
-        .padding(.horizontal, 4)
-        .padding(.vertical, 1)
-        .background(Capsule().fill(Color.secondary.opacity(0.10)))
-        .onTapGesture {
-            showThinkingLevelSheet = true
-        }
-        .sheet(isPresented: $showThinkingLevelSheet) {
-            ThinkingLevelSheetView(
-                currentLevel: level,
-                availableLevels: vm.availableThinkingLevels,
-                onSelect: { newLevel in
-                    vm.setThinkingLevel(newLevel)
-                    showThinkingLevelSheet = false
-                }
-            )
-            .presentationDetents([.medium])
-        }
     }
 
     /// True when the current session's navbar title must render blurred —
@@ -3432,25 +3148,20 @@ struct AIChatView: View {
         .accessibilityHint(Text("Toggles reading replies aloud", comment: "VoiceOver hint for the read-replies toggle"))
     }
 
-    /// `/` button that opens the slash command menu.
+    /// Container button that opens the bottom controls sheet (Model, Reasoning, Context Usage).
     private var slashMenuButton: some View {
         Button {
-            if vm.showSlashMenu {
-                vm.dismissSlashMenu()
-            } else {
-                vm.showSlashMenuOverInput()
-                inputFocused = true
-            }
+            showComposerControlSheet = true
         } label: {
-            Text("/")
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                .italic()
+            Image(systemName: "shippingbox.fill")
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
                 .foregroundStyle(ChatColors.secondaryText)
                 .frame(width: 34, height: 34)
                 .background(ChatColors.inputIconBg)
                 .clipShape(Circle())
                 .overlay(Circle().stroke(ChatColors.inputIconBorder, lineWidth: 0.5))
         }
+        .accessibilityLabel(Text("Model & Controls", comment: "Bottom sheet toggle for model, reasoning, and context usage"))
     }
 
     /// "Exit Edit Mode" capsule shown while editing a past message.
@@ -5396,21 +5107,6 @@ private struct NavTitleKey: Equatable {
     let sessionTitle: String?
     let canEditTitle: Bool
     let soulName: String
-    let modelName: String
-    let isGroupBound: Bool
-    /// [T-codex-fast-mode] Circular ⚡ badge before the model name while
-    /// Fast Mode is enabled on a Codex OAuth model.
-    let showFastBolt: Bool
-    let resolvedText: String?
-    let hasBinding: Bool
-    let hasProviders: Bool
-    let showThinkingBadge: Bool
-    let thinkingLevelName: String
-    let fallbackTrigger: Int
-    /// The fallback-pulse @State lives on AIChatView but is RENDERED inside
-    /// the gated titleView — each discrete set (6 over ~1.75s) must pierce
-    /// the gate or the red pulse freezes at its first frame.
-    let fallbackPulse: Double
     /// [T-ios-navtitle-blur-stuck-after-unlock] Face ID lock state — the
     /// title's `.blur(radius: titleIsVisuallyLocked ? 8 : 0)` renders inside
     /// the gated toolbar content, so the unlock transition must pierce the
@@ -5463,18 +5159,10 @@ private struct ChatToolbarHost<Title: View, Trailing: View>: View, Equatable {
             var diffs: [String] = []
             if lhs.key.navTitle != rhs.key.navTitle {
                 let l = lhs.key.navTitle, r = rhs.key.navTitle
+                if l.companionState != r.companionState { diffs.append("companionState") }
                 if l.sessionTitle != r.sessionTitle { diffs.append("sessionTitle") }
                 if l.canEditTitle != r.canEditTitle { diffs.append("canEditTitle") }
                 if l.soulName != r.soulName { diffs.append("soulName") }
-                if l.modelName != r.modelName { diffs.append("modelName") }
-                if l.isGroupBound != r.isGroupBound { diffs.append("isGroupBound") }
-                if l.resolvedText != r.resolvedText { diffs.append("resolvedText") }
-                if l.hasBinding != r.hasBinding { diffs.append("hasBinding") }
-                if l.hasProviders != r.hasProviders { diffs.append("hasProviders") }
-                if l.showThinkingBadge != r.showThinkingBadge { diffs.append("showThinkingBadge") }
-                if l.thinkingLevelName != r.thinkingLevelName { diffs.append("thinkingLevelName") }
-                if l.fallbackTrigger != r.fallbackTrigger { diffs.append("fallbackTrigger") }
-                if l.fallbackPulse != r.fallbackPulse { diffs.append("fallbackPulse") }
                 if l.titleLocked != r.titleLocked { diffs.append("titleLocked") }
             }
             if lhs.key.messagesEmpty != rhs.key.messagesEmpty { diffs.append("messagesEmpty") }
