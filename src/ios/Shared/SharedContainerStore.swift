@@ -25,10 +25,56 @@ enum SharedContainerStore {
         if let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID) {
             return url
         }
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("MinisContainer", isDirectory: true)
+        // [SelfSign-Fallback] 没有 App Group 授权时，用户可见目录落到 Documents 下，
+        // 配合 Info.plist 的 UIFileSharingEnabled，让「文件」App 出现可写入口：
+        //   On My iPhone → <App> → MinisData → MinisFileProvider → {shared,skills,memory}
+        // 以及一个短入口 Documents/Minis → 上面那个目录。
+        let fm = FileManager.default
+        let docs = fm.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let base = docs.appendingPathComponent("MinisData", isDirectory: true)
+        try? fm.createDirectory(at: base, withIntermediateDirectories: true)
+        migrateLegacyFallbackIfNeeded(into: base)
+        ensureUserFacingShortcut(docs: docs, base: base)
+        return base
+    }
+
+    /// 存放绝不能进「文件」App 的东西（MCP servers.json 凭据、扩展日志等）。
+    /// 有 App Group 时等同于共享容器；自签环境回落到沙盒 Library。
+    static var privateRootURL: URL {
+        if let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID) {
+            return url
+        }
+        let base = legacyFallbackURL
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         return base
+    }
+
+    /// 旧版自签构建把用户目录放在 Library/Application Support/MinisContainer。
+    private static var legacyFallbackURL: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("MinisContainer", isDirectory: true)
+    }
+
+    private static func migrateLegacyFallbackIfNeeded(into base: URL) {
+        let fm = FileManager.default
+        let legacy = legacyFallbackURL
+        guard fm.fileExists(atPath: legacy.path) else { return }
+        let src = legacy.appendingPathComponent("MinisFileProvider", isDirectory: true)
+        let dst = base.appendingPathComponent("MinisFileProvider", isDirectory: true)
+        guard fm.fileExists(atPath: src.path), !fm.fileExists(atPath: dst.path) else { return }
+        try? fm.moveItem(at: src, to: dst)
+    }
+
+    /// Documents/Minis → Documents/MinisData/MinisFileProvider，少点两层目录。
+    private static func ensureUserFacingShortcut(docs: URL, base: URL) {
+        let fm = FileManager.default
+        let target = base.appendingPathComponent("MinisFileProvider", isDirectory: true)
+        try? fm.createDirectory(at: target, withIntermediateDirectories: true)
+        let link = docs.appendingPathComponent("Minis")
+        var st = stat()
+        guard lstat(link.path, &st) != 0 else { return }
+        try? fm.createSymbolicLink(atPath: link.path,
+                                   withDestinationPath: "MinisData/MinisFileProvider")
     }
 
 

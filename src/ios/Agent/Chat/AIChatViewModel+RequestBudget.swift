@@ -277,7 +277,9 @@ extension AIChatViewModel {
     /// to iOS Files (mounted-folders.json, FileProvider extension logs, etc).
     /// Sibling of `minisAppGroupRoot` inside the same App Group container.
     nonisolated static var minisConfigRoot: URL {
-        let url = SharedContainerStore.containerURL
+        // [SelfSign-Fallback] 私有目录必须留在沙盒 Library 里，不能跟随用户可见根
+        // 一起落到 Documents（否则 servers.json 里的 API Key 会暴露在「文件」App）。
+        let url = SharedContainerStore.privateRootURL
             .appendingPathComponent("MinisConfig", isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
