@@ -26,6 +26,12 @@
   'use strict';
 
   var VERSION = '1.0.0';
+  /* [HotReload] 运行中脚本的自报版本标签。
+     改这一行（或任何一个动效参数）后，native 侧 didFinish 会回读
+     window.__MINIS_COMPANION_BUILD__ 并写进系统日志，用来确证「新脚本
+     已经在真机 WebView 里跑起来了」，无需任何重编译。 */
+  var BUILD_TAG = 'v1.0.0-baseline';
+  if (typeof globalThis !== 'undefined') globalThis.__MINIS_COMPANION_BUILD__ = BUILD_TAG;
   var SVG_NS = 'http://www.w3.org/2000/svg';
   var STYLE_FLAG = 'data-minis-companion-css';
 
