@@ -254,8 +254,8 @@
       /* 2. 全身核心骨骼组 */
       '<g class="mc-body-root mc-anim-breathe" id="' + P + 'bodyRoot">' +
 
-        /* 耳朵组 */
-        '<g class="mc-ears" id="' + P + 'earsG">' +
+        /* 耳朵组（已按需求彻底隐藏，恢复纯粹浑圆呆萌团子形态） */
+        '<g class="mc-ears" id="' + P + 'earsG" style="display:none;">' +
           '<ellipse id="' + P + 'earL" cx="58" cy="44" rx="24" ry="25" fill="#FFFFFF" stroke="#D2E4F7" stroke-width="1.8"/>' +
           '<ellipse id="' + P + 'earR" cx="182" cy="44" rx="24" ry="25" fill="#FFFFFF" stroke="#D2E4F7" stroke-width="1.8"/>' +
         '</g>' +

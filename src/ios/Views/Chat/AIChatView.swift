@@ -2214,7 +2214,7 @@ struct AIChatView: View {
         let canEditTitle = titlePillSession != nil
 
         return HStack(alignment: .center, spacing: 10) {
-            // [Minis Companion 42pt 饱满大头像]：近 4 倍面积，眼神、眨眼、手持感叹号牌与 3D 彩带一清二楚！
+            // [Minis Companion 42pt 浑圆呆萌大头像]：去除生硬突出的耳朵，浑圆自然，不被裁断！
             Button {
                 // 点击头像触发可爱欢呼与撒花动效互动
                 vm.triggerDeliveredMascotAnimation(duration: 4.0)
