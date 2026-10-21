@@ -382,18 +382,7 @@ private var companionDeliveredUntilKey: UInt8 = 0
 extension AIChatViewModel {
     public var currentCompanionState: String {
         if isProcessing {
-            // 1. 错误检测：如果有失败的 toolStatus
-            if let lastAssistant = messages.last(where: { $0.role == .assistant }) {
-                let hasError = lastAssistant.blocks.contains { block in
-                    if let status = block.toolStatus {
-                        if case .failed = status { return true }
-                    }
-                    return false
-                }
-                if hasError { return "error" }
-            }
-            
-            // 2. 活跃工具检测
+            // 1. 活跃工具检测（最高优先级：只要有工具在跑，吉祥物必然在专注干活）
             let activeTools = messages
                 .filter { $0.role == .assistant && !$0.isCompactedHistory }
                 .flatMap { $0.blocks }
@@ -412,14 +401,29 @@ extension AIChatViewModel {
                 return "inspecting"
             }
             
-            // 3. 思考状态检测
+            // 2. 当前末尾 Block 即时状态检测（跟随当前最新的执行阶段，告别死锁）
             if let lastAssistant = messages.last(where: { $0.role == .assistant }),
-               let lastBlock = lastAssistant.blocks.last,
-               lastBlock.kind == .thinking {
-                return "thinking"
+               let lastBlock = lastAssistant.blocks.last {
+                
+                // 2.1 如果最后一个 block 是刚失败的工具，展示委屈感叹号
+                if let status = lastBlock.toolStatus {
+                    if case .failed = status {
+                        return "error"
+                    }
+                }
+                
+                // 2.2 如果最后一个 block 正在思考，展示托腮思考
+                if lastBlock.kind == .thinking {
+                    return "thinking"
+                }
+                
+                // 2.3 如果最后一个 block 是正文文本，展示小嘴开合说话
+                if lastBlock.kind == .text {
+                    return "generating"
+                }
             }
             
-            // 4. 正在流式生成文本
+            // 3. 兜底正在生成
             return "generating"
         }
         
