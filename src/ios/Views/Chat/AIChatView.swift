@@ -724,7 +724,7 @@ struct AIChatView: View {
             // Full-screen kernel boot overlay
             kernelBootOverlay
         }
-        .background(ChatColors.background)
+        .background(LiquidAmbientBackdrop())
         .onDrop(of: [.image, .movie, .fileURL, .data], isTargeted: $isDropTargeted) { providers in
             handleDropProviders(providers)
             return true
@@ -4690,22 +4690,49 @@ struct FloatingCircleButtonSurface: ViewModifier {
 /// fill and BOTH shadows byte-for-byte, including the dark-mode-only top shadow
 /// that lifts the bar off the message list.
 private struct ComposerSurface: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+
     private var shape: RoundedRectangle {
         RoundedRectangle(cornerRadius: 20, style: .continuous)
     }
 
     func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            content
-                .glassEffect(.regular, in: shape)
-                .clipShape(shape)
-        } else {
-            content
-                .background(shape.fill(ChatColors.inputBg))
-                .clipShape(shape)
-                .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 2)
-                .shadow(color: Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0, alpha: 0.5) : UIColor(white: 0, alpha: 0) }), radius: 8, x: 0, y: -4)
-        }
+        content
+            .background {
+                ZStack {
+                    shape.fill(.ultraThinMaterial)
+
+                    shape.fill(
+                        LinearGradient(
+                            colors: colorScheme == .dark
+                                ? [Color.white.opacity(0.08), Color.white.opacity(0.02)]
+                                : [Color.white.opacity(0.68), Color.white.opacity(0.38)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+
+                    shape.strokeBorder(
+                        LinearGradient(
+                            stops: [
+                                .init(color: colorScheme == .dark ? Color.white.opacity(0.42) : Color.white.opacity(0.92), location: 0.0),
+                                .init(color: colorScheme == .dark ? Color.white.opacity(0.12) : Color.white.opacity(0.38), location: 0.4),
+                                .init(color: colorScheme == .dark ? Color.white.opacity(0.03) : Color.white.opacity(0.08), location: 1.0)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 0.65
+                    )
+                }
+                .shadow(
+                    color: colorScheme == .dark ? Color.black.opacity(0.35) : Color.black.opacity(0.08),
+                    radius: 12,
+                    x: 0,
+                    y: 4
+                )
+            }
+            .clipShape(shape)
     }
 }
 
@@ -5010,9 +5037,9 @@ struct NavBarStyleModifier: ViewModifier {
                 // MessageListViewController.
                 .modifier(MacOS27OpaqueNavigationBar(background: ChatColors.background))
         } else {
-            // iOS 16–18: opaque navbar background
+            // iOS 16–18: ultraThinMaterial navbar background
             content
-                .toolbarBackground(ChatColors.background, for: .navigationBar)
+                .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
                 .toolbarBackground(.visible, for: .navigationBar)
                 .overlay(alignment: .top) {
                     if measuresSafeArea {
@@ -6735,3 +6762,62 @@ public struct CompanionAvatarView: UIViewRepresentable {
         }
     }
 }
+
+// MARK: - Liquid Glass Ambient Backdrop
+
+struct LiquidAmbientBackdrop: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        ZStack {
+            if colorScheme == .dark {
+                Color(red: 0.06, green: 0.07, blue: 0.09)
+                    .ignoresSafeArea()
+            } else {
+                Color(red: 0.96, green: 0.97, blue: 0.99)
+                    .ignoresSafeArea()
+            }
+
+            GeometryReader { geo in
+                let w = geo.size.width
+                let h = geo.size.height
+
+                // 顶部柔蓝极光微光（映射毛玻璃顶栏）
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                colorScheme == .dark ? Color.blue.opacity(0.18) : Color.blue.opacity(0.12),
+                                Color.clear
+                            ],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: max(w * 0.45, 120)
+                        )
+                    )
+                    .frame(width: w * 0.9, height: w * 0.9)
+                    .position(x: w * 0.85, y: h * 0.12)
+                    .blur(radius: 50)
+
+                // 中下方流动紫晶/海青微光（映射毛玻璃底栏）
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                colorScheme == .dark ? Color.indigo.opacity(0.16) : Color.cyan.opacity(0.10),
+                                Color.clear
+                            ],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: max(w * 0.5, 140)
+                        )
+                    )
+                    .frame(width: w * 0.95, height: w * 0.95)
+                    .position(x: w * 0.15, y: h * 0.82)
+                    .blur(radius: 55)
+            }
+            .ignoresSafeArea()
+        }
+    }
+}
+

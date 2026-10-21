@@ -158,6 +158,7 @@ private struct ContextMenuPreviewSurface: ViewModifier {
 /// disappear (the FAB regression).
 private struct UserBubbleSurface: ViewModifier {
     let isQueued: Bool
+    @Environment(\.colorScheme) private var colorScheme
 
     /// Matches `.contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 18))`
     /// on the row exactly — including the default (non-`.continuous`) corner
@@ -177,10 +178,42 @@ private struct UserBubbleSurface: ViewModifier {
                         .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
                         .foregroundStyle(ChatColors.secondaryText.opacity(0.5))
                 )
-        } else if #available(iOS 26.0, *) {
-            content.glassEffect(.regular, in: shape)
         } else {
-            content.background(shape.fill(ChatColors.userBubble))
+            content
+                .background {
+                    ZStack {
+                        shape.fill(.ultraThinMaterial)
+
+                        shape.fill(
+                            LinearGradient(
+                                colors: colorScheme == .dark
+                                    ? [Color.blue.opacity(0.24), Color.indigo.opacity(0.16)]
+                                    : [Color.blue.opacity(0.18), Color.cyan.opacity(0.10)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+
+                        shape.strokeBorder(
+                            LinearGradient(
+                                stops: [
+                                    .init(color: colorScheme == .dark ? Color.white.opacity(0.48) : Color.white.opacity(0.85), location: 0.0),
+                                    .init(color: colorScheme == .dark ? Color.white.opacity(0.14) : Color.white.opacity(0.30), location: 0.4),
+                                    .init(color: colorScheme == .dark ? Color.white.opacity(0.04) : Color.white.opacity(0.08), location: 1.0)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 0.65
+                        )
+                    }
+                    .shadow(
+                        color: colorScheme == .dark ? Color.black.opacity(0.28) : Color.blue.opacity(0.08),
+                        radius: 8,
+                        x: 0,
+                        y: 3
+                    )
+                }
         }
     }
 }

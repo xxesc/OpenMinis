@@ -55,7 +55,7 @@ struct ComposerControlSheet: View {
                 .padding(.bottom, 32)
             }
             .scrollIndicators(.hidden)
-            .background(ChatColors.background)
+            .background(LiquidAmbientBackdrop())
             .navigationTitle("模型与上下文")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -129,10 +129,7 @@ struct ComposerControlSheet: View {
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(ChatColors.secondaryBg)
-            )
+            .modifier(LiquidCardSurface())
         }
         .buttonStyle(.plain)
     }
@@ -166,10 +163,7 @@ struct ComposerControlSheet: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(ChatColors.secondaryBg)
-        )
+        .modifier(LiquidCardSurface())
     }
 
     /// Pixel-perfect ChatGPT plump capsule slider reproduction
@@ -321,10 +315,7 @@ struct ComposerControlSheet: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(ChatColors.secondaryBg)
-        )
+        .modifier(LiquidCardSurface())
     }
 
     private var stackedBar: some View {
@@ -389,3 +380,53 @@ struct ComposerControlSheet: View {
         return "\(count)"
     }
 }
+
+// MARK: - Liquid Glass Card Surface
+
+private struct LiquidCardSurface: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                ZStack {
+                    shape.fill(.ultraThinMaterial)
+
+                    shape.fill(
+                        LinearGradient(
+                            colors: colorScheme == .dark
+                                ? [Color.white.opacity(0.06), Color.white.opacity(0.01)]
+                                : [Color.white.opacity(0.65), Color.white.opacity(0.35)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+
+                    shape.strokeBorder(
+                        LinearGradient(
+                            stops: [
+                                .init(color: colorScheme == .dark ? Color.white.opacity(0.38) : Color.white.opacity(0.90), location: 0.0),
+                                .init(color: colorScheme == .dark ? Color.white.opacity(0.10) : Color.white.opacity(0.25), location: 0.4),
+                                .init(color: colorScheme == .dark ? Color.white.opacity(0.02) : Color.white.opacity(0.06), location: 1.0)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 0.65
+                    )
+                }
+                .shadow(
+                    color: colorScheme == .dark ? Color.black.opacity(0.25) : Color.black.opacity(0.05),
+                    radius: 8,
+                    x: 0,
+                    y: 2
+                )
+            }
+            .clipShape(shape)
+    }
+}
+
