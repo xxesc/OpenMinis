@@ -11,6 +11,7 @@ struct ComposerControlSheet: View {
 
     @State private var showModelPicker = false
     @State private var draggingIndex: Int?
+    @State private var dragOffsetRatio: CGFloat? = nil
 
     // MARK: - Derived state
 
@@ -136,21 +137,21 @@ struct ComposerControlSheet: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Thinking effort (GPT-style slider)
+    // MARK: - Thinking effort (ChatGPT-style plump capsule slider)
 
     private var effortCard: some View {
         let levels = vm.availableThinkingLevels
         let current = vm.currentThinkingLevel
         let activeIndex = draggingIndex ?? (levels.firstIndex(of: current) ?? 0)
 
-        return VStack(alignment: .leading, spacing: 12) {
+        return VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("思考强度")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(ChatColors.primaryText)
                 Spacer(minLength: 4)
                 Text(levels.indices.contains(activeIndex) ? levels[activeIndex].displayName : current.displayName)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Color.accentColor)
                     .monospacedDigit()
             }
@@ -160,21 +161,10 @@ struct ComposerControlSheet: View {
                     .font(.system(size: 12))
                     .foregroundStyle(ChatColors.tertiaryText)
             } else {
-                effortSlider(levels: levels, activeIndex: activeIndex)
-                    .frame(height: 26)
-
-                HStack(spacing: 0) {
-                    ForEach(Array(levels.enumerated()), id: \.offset) { index, level in
-                        Text(level.displayName)
-                            .font(.system(size: 10, weight: index == activeIndex ? .semibold : .regular))
-                            .foregroundStyle(index == activeIndex ? Color.accentColor : ChatColors.tertiaryText)
-                            .frame(maxWidth: .infinity)
-                            .animation(.easeOut(duration: 0.15), value: activeIndex)
-                    }
-                }
+                chatGPTCapsuleSlider(levels: levels, activeIndex: activeIndex)
             }
         }
-        .padding(14)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -182,70 +172,104 @@ struct ComposerControlSheet: View {
         )
     }
 
-    private func effortSlider(levels: [ThinkingLevel], activeIndex: Int) -> some View {
+    /// Pixel-perfect ChatGPT plump capsule slider reproduction
+    private func chatGPTCapsuleSlider(levels: [ThinkingLevel], activeIndex: Int) -> some View {
         GeometryReader { geo in
-            let width = geo.size.width
-            let inset: CGFloat = 10
-            let usable = max(width - inset * 2, 1)
+            let outerHeight: CGFloat = 54
+            let outerRadius: CGFloat = outerHeight / 2 // 27pt
+            let blueHeight: CGFloat = 48
+            let blueRadius: CGFloat = blueHeight / 2 // 24pt
+            let knobDiameter: CGFloat = 42
+            let knobRadius: CGFloat = knobDiameter / 2 // 21pt
+            let dotDiameter: CGFloat = 8
+
+            let totalWidth = geo.size.width
+            let dotStart = outerRadius
+            let dotEnd = max(totalWidth - outerRadius, dotStart)
             let count = max(levels.count, 1)
-            let step = count > 1 ? usable / CGFloat(count - 1) : 0
-            let knobX = inset + step * CGFloat(min(activeIndex, count - 1))
-            let fillWidth = max(knobX - inset, 5)
+            let step = count > 1 ? (dotEnd - dotStart) / CGFloat(count - 1) : 0
+
+            // Current animated/dragged position
+            let currentFloatIndex: CGFloat = {
+                if let ratio = dragOffsetRatio {
+                    return max(0, min(CGFloat(count - 1), ratio))
+                }
+                return CGFloat(min(activeIndex, count - 1))
+            }()
+
+            let knobCenterX = dotStart + step * currentFloatIndex
+            let blueWidth = max((knobCenterX - dotStart) + blueRadius * 2, blueHeight)
 
             ZStack(alignment: .leading) {
+                // 1. Outer capsule container
                 Capsule()
-                    .fill(Color.secondary.opacity(0.18))
-                    .frame(width: usable, height: 5)
-                    .offset(x: inset)
+                    .fill(Color(UIColor.tertiarySystemFill))
+                    .frame(width: totalWidth, height: outerHeight)
 
+                // 2. Active bright blue capsule track (from first dot to current knob position)
                 Capsule()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.accentColor.opacity(0.55), Color.accentColor],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(width: fillWidth, height: 5)
-                    .offset(x: inset)
+                    .fill(Color(red: 0.18, green: 0.48, blue: 0.96))
+                    .frame(width: blueWidth, height: blueHeight)
+                    .offset(x: dotStart - blueRadius)
 
-                ForEach(0..<count, id: \.self) { index in
+                // 3. Scale dots
+                ForEach(0..<count, id: \.self) { idx in
+                    let dotX = dotStart + step * CGFloat(idx)
                     Circle()
-                        .fill(index <= activeIndex ? Color.white.opacity(0.9) : Color.white.opacity(0.001))
-                        .frame(width: 3, height: 3)
-                        .offset(x: inset + step * CGFloat(index) - 1.5)
+                        .fill(
+                            CGFloat(idx) < currentFloatIndex
+                                ? Color.white.opacity(0.55)
+                                : Color.white.opacity(0.28)
+                        )
+                        .frame(width: dotDiameter, height: dotDiameter)
+                        .position(x: dotX, y: outerRadius)
                 }
 
+                // 4. White plump knob
                 Circle()
-                    .fill(Color(UIColor.systemBackground))
-                    .frame(width: 20, height: 20)
-                    .overlay(Circle().stroke(Color.accentColor, lineWidth: 2.5))
-                    .shadow(color: Color.black.opacity(0.18), radius: 3, x: 0, y: 1)
-                    .offset(x: knobX - 10)
-                    .animation(.easeOut(duration: 0.12), value: activeIndex)
+                    .fill(Color.white)
+                    .frame(width: knobDiameter, height: knobDiameter)
+                    .shadow(color: Color.black.opacity(0.18), radius: 4, x: 0, y: 2)
+                    .position(x: knobCenterX, y: outerRadius)
             }
-            .frame(width: width, height: 26)
-            .contentShape(Rectangle())
+            .frame(width: totalWidth, height: outerHeight)
+            .contentShape(Capsule())
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
-                        draggingIndex = levelIndex(at: value.location.x, inset: inset, step: step, count: count)
+                        let locationX = value.location.x
+                        let rawIndex = (locationX - dotStart) / (step > 0 ? step : 1)
+                        let clamped = max(0, min(CGFloat(count - 1), rawIndex))
+                        dragOffsetRatio = clamped
+
+                        let nearestIndex = min(max(Int(clamped.rounded()), 0), count - 1)
+                        if draggingIndex != nearestIndex {
+                            draggingIndex = nearestIndex
+                            UISelectionFeedbackGenerator().selectionChanged()
+                        }
                     }
                     .onEnded { value in
-                        let index = levelIndex(at: value.location.x, inset: inset, step: step, count: count)
-                        draggingIndex = nil
-                        if levels.indices.contains(index), levels[index] != vm.currentThinkingLevel {
-                            vm.setThinkingLevel(levels[index])
+                        let locationX = value.location.x
+                        let rawIndex = (locationX - dotStart) / (step > 0 ? step : 1)
+                        let targetIndex = min(max(Int(rawIndex.rounded()), 0), count - 1)
+
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                            dragOffsetRatio = nil
+                            draggingIndex = nil
+                        }
+
+                        if levels.indices.contains(targetIndex) {
+                            let newLevel = levels[targetIndex]
+                            if newLevel != vm.currentThinkingLevel {
+                                UISelectionFeedbackGenerator().selectionChanged()
+                                vm.setThinkingLevel(newLevel)
+                            }
                         }
                     }
             )
+            .animation(.spring(response: 0.28, dampingFraction: 0.82), value: activeIndex)
         }
-    }
-
-    private func levelIndex(at x: CGFloat, inset: CGFloat, step: CGFloat, count: Int) -> Int {
-        guard count > 1, step > 0 else { return 0 }
-        let raw = (x - inset) / step
-        return min(max(Int(raw.rounded()), 0), count - 1)
+        .frame(height: 54)
     }
 
     // MARK: - Context usage (Doubao-style breakdown)
@@ -278,9 +302,21 @@ struct ComposerControlSheet: View {
             stackedBar
 
             VStack(spacing: 7) {
-                legendRow(title: "系统提示词与工具", tokens: systemTokens, color: Color.accentColor.opacity(0.45))
-                legendRow(title: "对话消息", tokens: messageTokens, color: Color.accentColor)
-                legendRow(title: "剩余可用", tokens: freeTokens, color: Color.secondary.opacity(0.28))
+                legendRow(
+                    color: Color.accentColor,
+                    label: "系统与设定",
+                    tokens: systemTokens
+                )
+                legendRow(
+                    color: Color.teal,
+                    label: "消息内容",
+                    tokens: messageTokens
+                )
+                legendRow(
+                    color: ChatColors.tertiaryText.opacity(0.35),
+                    label: "剩余空间",
+                    tokens: freeTokens
+                )
             }
         }
         .padding(14)
@@ -293,68 +329,63 @@ struct ComposerControlSheet: View {
 
     private var stackedBar: some View {
         GeometryReader { geo in
-            let width = geo.size.width
-            let sysFraction = windowTokens > 0 ? min(CGFloat(systemTokens) / CGFloat(windowTokens), 1) : 0
-            let msgFraction = windowTokens > 0
-                ? min(CGFloat(messageTokens) / CGFloat(windowTokens), max(1 - sysFraction, 0))
-                : 0
+            let totalW = geo.size.width
+            let usableTokens = max(windowTokens, 1)
+
+            let sysW = totalW * CGFloat(systemTokens) / CGFloat(usableTokens)
+            let msgW = totalW * CGFloat(messageTokens) / CGFloat(usableTokens)
 
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(Color.secondary.opacity(0.14))
+                    .fill(Color.secondary.opacity(0.18))
+                    .frame(width: totalW, height: 10)
 
-                HStack(spacing: 1.5) {
-                    if sysFraction > 0 {
-                        Capsule()
-                            .fill(Color.accentColor.opacity(0.45))
-                            .frame(width: max(width * sysFraction - 1, 2))
+                HStack(spacing: 0) {
+                    if sysW > 0 {
+                        Rectangle()
+                            .fill(Color.accentColor)
+                            .frame(width: max(sysW, 2), height: 10)
                     }
-                    if msgFraction > 0 {
-                        Capsule()
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color.accentColor.opacity(0.75), Color.accentColor],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .frame(width: max(width * msgFraction - 1, 2))
+                    if msgW > 0 {
+                        Rectangle()
+                            .fill(Color.teal)
+                            .frame(width: max(msgW, 2), height: 10)
                     }
                 }
+                .clipShape(Capsule())
             }
         }
-        .frame(height: 7)
+        .frame(height: 10)
     }
 
-    private func legendRow(title: String, tokens: Int, color: Color) -> some View {
-        let share = windowTokens > 0 ? Double(tokens) / Double(windowTokens) * 100 : 0
-        return HStack(spacing: 7) {
+    private func legendRow(color: Color, label: String, tokens: Int) -> some View {
+        HStack(spacing: 8) {
             Circle()
                 .fill(color)
-                .frame(width: 7, height: 7)
-            Text(title)
-                .font(.system(size: 12))
-                .foregroundStyle(ChatColors.secondaryText)
-            Spacer(minLength: 6)
-            Text(String(format: "%.1f%%", share))
+                .frame(width: 8, height: 8)
+            Text(label)
                 .font(.system(size: 11))
-                .foregroundStyle(ChatColors.tertiaryText)
-                .monospacedDigit()
+                .foregroundStyle(ChatColors.secondaryText)
+            Spacer(minLength: 4)
             Text(Self.compactTokens(tokens))
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(ChatColors.primaryText)
                 .monospacedDigit()
-                .frame(minWidth: 54, alignment: .trailing)
         }
     }
 
-    // MARK: - Helpers
+    // MARK: - Formatters
 
-    /// Doubao-style compact numbers: `58.2K` / `256.0K` / `1.0M`.
-    static func compactTokens(_ value: Int) -> String {
-        let v = Double(max(value, 0))
-        if v >= 1_000_000 { return String(format: "%.1fM", v / 1_000_000) }
-        if v >= 1_000 { return String(format: "%.1fK", v / 1_000) }
-        return String(format: "%.0f", v)
+    private static func compactTokens(_ count: Int) -> String {
+        if count <= 0 { return "0" }
+        if count >= 1_000_000 {
+            let m = Double(count) / 1_000_000.0
+            return String(format: "%.1fM", m)
+        }
+        if count >= 1_000 {
+            let k = Double(count) / 1_000.0
+            return String(format: "%.1fk", k)
+        }
+        return "\(count)"
     }
 }
