@@ -130,7 +130,7 @@ enum MinisICloudCapability {
     static let containerIdentifier = "iCloud.com.openminis.app"
 
     static var isAvailable: Bool {
-        // [T-selfsign-icloud] 纯官方非私有 API，在所有平台与 SDK 下均可安全编译与运行
-        FileManager.default.ubiquityIdentityToken != nil
+        // iCloud 功能已按需彻底禁用
+        false
     }
 }

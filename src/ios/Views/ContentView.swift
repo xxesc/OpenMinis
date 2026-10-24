@@ -3805,10 +3805,7 @@ struct ContentView: View {
                     .minimumScaleFactor(0.85)
                     .frame(maxWidth: .infinity, alignment: .center)
             } else {
-                let canOpenSync: Bool = {
-                    if #available(iOS 17.0, *) { return SyncV2Bootstrap.isEnabled }
-                    return false
-                }()
+                let canOpenSync: Bool = false
                 // Title text comes from SOUL.md (falls back to "Minis"). The
                 // leading sync indicator floats as an overlay so it doesn't
                 // take layout space — title stays perfectly centered in the
@@ -6845,10 +6842,7 @@ private struct SessionContextMenu: View, Equatable {
     }
 
     private var iCloudSyncVisible: Bool {
-        if #available(iOS 17.0, *) {
-            return UserDefaults.standard.bool(forKey: "cloudSync.v2.enabled")
-        }
-        return false
+        false
     }
 }
 
@@ -8295,23 +8289,6 @@ private struct SettingsSheet: View {
                                 .foregroundStyle(.white)
                                 .frame(width: 21, height: 21)
                                 .background(.orange, in: Circle())
-                        }
-                    }
-                    if #available(iOS 17.0, *) {
-                        NavigationLink {
-                            // v2 is the default sync engine; legacy v1
-                            // settings page is unreachable from here.
-                            CloudSyncSettingsV2View()
-                        } label: {
-                            Label {
-                                Text("iCloud Sync")
-                            } icon: {
-                                Image(systemName: "icloud")
-                                    .font(.system(size: 9))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 21, height: 21)
-                                    .background(.cyan, in: Circle())
-                            }
                         }
                     }
                     NavigationLink {

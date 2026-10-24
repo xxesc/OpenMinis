@@ -203,10 +203,7 @@ struct MinisApp: App {
     @available(iOS 17.0, *)
     @MainActor
     private static func startSyncEngines() async {
-        await SyncV2Bootstrap.startIfEnabled()
-        if !SyncV2Bootstrap.shouldPauseV1() {
-            await CloudSyncEngine.shared.start()
-        }
+        // Disabled: iCloud sync removed
     }
 
     var body: some Scene {
@@ -636,37 +633,8 @@ struct MinisApp: App {
                     }
                 }
             }
-            // Trigger iCloud sync on foreground resume: fetch remote changes + send local dirty records.
-            // Route to whichever engine is active. v1 must stay quiet whenever
-            // v2 has taken over (SyncV2Bootstrap.shouldPauseV1 == true) —
-            // otherwise v1's triggerFetch round-trips v1 records every scene-
-            // active tick, observed as endless `[iCloud] mergeRemoteMessage
-            // SKIP (local newer)` log spam plus continuous v1-side dirty
-            // drain that competes with v2's send pipeline.
-            if #available(iOS 17.0, *) {
-                Task { @MainActor in
-                    if SyncV2Bootstrap.shouldPauseV1() {
-                        // [T-icloud-device-heartbeat] Re-announce this device on
-                        // every foreground resume so peers see a fresh lastSeen.
-                        // The record was previously written ONCE per process
-                        // lifetime (V2 startup); a Mac app left open for days
-                        // never refreshed it and read as "last seen N days ago".
-                        if !DeviceIdentity.isProvisional {
-                            await ChatStore.shared.markDirty(recordType: "SyncDeviceV2", recordId: DeviceIdentity.deviceId)
-                        }
-                        // [T-copilot-models-refresh-window] Re-check the model-list
-                        // refresh window on every return to the foreground, so a
-                        // model a provider enabled while the app sat open appears
-                        // without waiting for the next cold launch.
-                        ProviderConfigStore.shared.refreshAllModelsIfNeeded()
-                        await SyncCore.shared.fetchNow(trigger: .foregroundTimer)
-                        await SyncCore.shared.sendNow(trigger: .foregroundTimer)
-                    } else {
-                        await CloudSyncEngine.shared.triggerFetch()
-                        await CloudSyncEngine.shared.triggerSend()
-                    }
-                }
-            }
+            // Foreground resume housekeeping (iCloud sync removed).
+            ProviderConfigStore.shared.refreshAllModelsIfNeeded()
 
         case .inactive:
             let remaining = UIApplication.shared.backgroundTimeRemaining

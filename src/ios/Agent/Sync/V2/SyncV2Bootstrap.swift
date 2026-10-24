@@ -42,51 +42,13 @@ enum SyncV2Bootstrap {
     /// Override via the `cloudSync.v2.enabled` UserDefaults key directly
     /// during development.
     static var isEnabled: Bool {
-        // [SelfSign-iCloud-Gate] 无 iCloud 容器授权（自签构建）时永不启用。
-        guard MinisICloudCapability.isAvailable else { return false }
-        let key = "cloudSync.v2.enabled"
-        if UserDefaults.standard.object(forKey: key) == nil {
-            // Inherit from v1 if the user ever interacted with that
-            // toggle (object(forKey:) returns non-nil once any write
-            // occurred — including the v1 engine's own write-back at
-            // init). If neither key exists this is a clean install:
-            // default OFF.
-            let v1Key = "cloudSync.enabled"
-            let inherited: Bool
-            if let v1 = UserDefaults.standard.object(forKey: v1Key) as? Bool {
-                inherited = v1
-                logger.info("[SyncCore] v2 isEnabled bootstrap — inheriting v1 cloudSync.enabled=\(v1)")
-            } else {
-                inherited = false
-                logger.info("[SyncCore] v2 isEnabled bootstrap — fresh install, defaulting OFF")
-            }
-            UserDefaults.standard.set(inherited, forKey: key)
-            return inherited
-        }
-        return UserDefaults.standard.bool(forKey: key)
+        // iCloud 功能已按需彻底禁用
+        false
     }
 
     static func setEnabled(_ enabled: Bool) {
-        // [SelfSign-iCloud-Gate] 无授权时忽略任何开启请求。
-        guard MinisICloudCapability.isAvailable else {
-            UserDefaults.standard.set(false, forKey: "cloudSync.v2.enabled")
-            return
-        }
-        let prev = UserDefaults.standard.object(forKey: "cloudSync.v2.enabled") as? Bool ?? true
-        UserDefaults.standard.set(enabled, forKey: "cloudSync.v2.enabled")
-        logger.info("[SyncCore] v2 enabled flag set to \(enabled) (was \(prev))")
-        // When the user disables iCloud Sync, stop the active SyncCore +
-        // transports immediately so dirty queue drains pause and no more
-        // fetch/push fires until they opt back in. Without this, the
-        // engine keeps running with stale credentials for the rest of
-        // the launch — the indicator hides via @AppStorage observation,
-        // but background CKQuery traffic continues. Re-enabling still
-        // requires a relaunch because boot wiring is non-idempotent.
-        if prev == true && enabled == false {
-            if #available(iOS 17.0, *) {
-                Task { await SyncCore.shared.stop() }
-            }
-        }
+        UserDefaults.standard.set(false, forKey: "cloudSync.v2.enabled")
+    }
         // T-v2-hot-enable: user flipped the toggle ON after launch. Older
         // builds required a relaunch because boot only ran from MinisApp
         // launch path — leaving the engine in 'Starting…' with
