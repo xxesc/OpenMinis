@@ -49,21 +49,6 @@ enum SyncV2Bootstrap {
     static func setEnabled(_ enabled: Bool) {
         UserDefaults.standard.set(false, forKey: "cloudSync.v2.enabled")
     }
-        // T-v2-hot-enable: user flipped the toggle ON after launch. Older
-        // builds required a relaunch because boot only ran from MinisApp
-        // launch path — leaving the engine in 'Starting…' with
-        // transports=0, isRunning=false, and sendNow warnings forever.
-        // Bootstrap is now idempotent (SyncCore.register dedups by name,
-        // type/hydrator registries overwrite-as-self, SyncCore.start
-        // guards on isRunning), so it is safe to invoke from here.
-        if prev == false && enabled == true {
-            if #available(iOS 17.0, *) {
-                Task { @MainActor in
-                    await SyncV2Bootstrap.startIfEnabled()
-                }
-            }
-        }
-    }
 
     /// Has the user explicitly requested migration of their pre-v2 history?
     /// Default OFF: only newly-created sessions/messages sync to v2 by
