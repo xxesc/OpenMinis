@@ -197,7 +197,8 @@ struct ComposerControlSheet: View {
             ZStack(alignment: .leading) {
                 // 1. Outer capsule container
                 Capsule()
-                    .fill(Color(UIColor.tertiarySystemFill))
+                    .fill(Color.clear)
+                    .modifier(ThinkingSliderTrackSurface())
                     .frame(width: totalWidth, height: outerHeight)
 
                 // 2. Active bright blue capsule track (from first dot to current knob position)
@@ -381,6 +382,23 @@ struct ComposerControlSheet: View {
     }
 }
 
+// MARK: - Native Liquid Glass slider track
+
+private struct ThinkingSliderTrackSurface: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+                .glassEffect(.regular, in: .capsule)
+        } else {
+            content
+                .background(.regularMaterial, in: Capsule())
+                .overlay {
+                    Capsule().strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
+                }
+        }
+    }
+}
+
 // MARK: - Liquid Glass Card Surface
 
 private struct LiquidCardSurface: ViewModifier {
@@ -391,42 +409,48 @@ private struct LiquidCardSurface: ViewModifier {
     }
 
     func body(content: Content) -> some View {
-        content
-            .background {
-                ZStack {
-                    shape.fill(.ultraThinMaterial)
+        if #available(iOS 26.0, *) {
+            content
+                .glassEffect(.regular, in: shape)
+                .clipShape(shape)
+        } else {
+            content
+                .background {
+                    ZStack {
+                        shape.fill(.ultraThinMaterial)
 
-                    shape.fill(
-                        LinearGradient(
-                            colors: colorScheme == .dark
-                                ? [Color.white.opacity(0.06), Color.white.opacity(0.01)]
-                                : [Color.white.opacity(0.65), Color.white.opacity(0.35)],
-                            startPoint: .top,
-                            endPoint: .bottom
+                        shape.fill(
+                            LinearGradient(
+                                colors: colorScheme == .dark
+                                    ? [Color.white.opacity(0.06), Color.white.opacity(0.01)]
+                                    : [Color.white.opacity(0.65), Color.white.opacity(0.35)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
                         )
-                    )
 
-                    shape.strokeBorder(
-                        LinearGradient(
-                            stops: [
-                                .init(color: colorScheme == .dark ? Color.white.opacity(0.38) : Color.white.opacity(0.90), location: 0.0),
-                                .init(color: colorScheme == .dark ? Color.white.opacity(0.10) : Color.white.opacity(0.25), location: 0.4),
-                                .init(color: colorScheme == .dark ? Color.white.opacity(0.02) : Color.white.opacity(0.06), location: 1.0)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        ),
-                        lineWidth: 0.65
+                        shape.strokeBorder(
+                            LinearGradient(
+                                stops: [
+                                    .init(color: colorScheme == .dark ? Color.white.opacity(0.38) : Color.white.opacity(0.90), location: 0.0),
+                                    .init(color: colorScheme == .dark ? Color.white.opacity(0.10) : Color.white.opacity(0.25), location: 0.4),
+                                    .init(color: colorScheme == .dark ? Color.white.opacity(0.02) : Color.white.opacity(0.06), location: 1.0)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            lineWidth: 0.65
+                        )
+                    }
+                    .shadow(
+                        color: colorScheme == .dark ? Color.black.opacity(0.25) : Color.black.opacity(0.05),
+                        radius: 8,
+                        x: 0,
+                        y: 2
                     )
                 }
-                .shadow(
-                    color: colorScheme == .dark ? Color.black.opacity(0.25) : Color.black.opacity(0.05),
-                    radius: 8,
-                    x: 0,
-                    y: 2
-                )
-            }
-            .clipShape(shape)
+                .clipShape(shape)
+        }
     }
 }
 
