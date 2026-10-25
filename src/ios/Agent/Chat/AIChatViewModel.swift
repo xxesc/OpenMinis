@@ -1425,13 +1425,22 @@ final class AIChatViewModel: ObservableObject, SpeechControlling {
     }
 
     var availableThinkingLevels: [ThinkingLevel] {
-        // [T-thinking-levels-data-driven] Offer one option per DISTINCT wire
-        // tier the model declares, instead of every level below a ceiling.
-        // The old ladder let four options collapse onto a single
-        // `reasoning_effort` — verified on-device 2026-08-01: glm-5.2
-        // (declares ["high","max"]) sent "high" for Low/Med/High/XHigh alike,
-        // while "max" was declared yet unreachable. See
-        // `ModelEntry.selectableThinkingLevels` for the fallback rules.
+        let store = ProviderConfigStore.shared
+        let groupId: String? = {
+            if let sid = sessionId, let binding = store.binding(for: sid) {
+                if case .group(let id, _) = binding.primarySource { return id }
+                return nil
+            }
+            return initialGroupId ?? store.defaultPrimaryGroupId
+        }()
+        if let group = groupId.flatMap({ store.group(for: $0) }) {
+            let union = Set(group.memberEntryIds.compactMap { store.entry(for: $0) }
+                .filter { $0.effectiveMaxThinkingLevel != .off }
+                .flatMap { $0.selectableThinkingLevels })
+            return union.isEmpty
+                ? ThinkingLevel.allCases.filter { $0 != .off && $0 <= groupMaxThinkingLevelForChat(group, store: store) }
+                : union.sorted()
+        }
         guard let entry = resolveCurrentEntry() else {
             return ThinkingLevel.allCases.filter { $0 != .off && $0 <= .xhigh }
         }
@@ -7935,26 +7944,48 @@ final class AIChatViewModel: ObservableObject, SpeechControlling {
     private var pendingThinkingLevel: ThinkingLevel?
 
     /// Set thinking level — persists if session exists, otherwise holds in memory.
+    /// When the session is bound to a model group, the slider edits that group's
+    /// reasoning default as well as the active session override so both controls
+    /// remain in sync.
     func setThinkingLevel(_ level: ThinkingLevel) {
-        let maxLevel = resolveCurrentEntry()?.effectiveMaxThinkingLevel ?? .xhigh
+        let store = ProviderConfigStore.shared
+        let groupId: String? = {
+            if let sid = sessionId, let binding = store.binding(for: sid) {
+                if case .group(let id, _) = binding.primarySource { return id }
+                return nil
+            }
+            return initialGroupId ?? store.defaultPrimaryGroupId
+        }()
+        let group = groupId.flatMap { store.group(for: $0) }
+        let maxLevel = group.map { groupMaxThinkingLevelForChat($0, store: store) }
+            ?? resolveCurrentEntry()?.effectiveMaxThinkingLevel
+            ?? .xhigh
         let clamped = level == .off ? level : min(level, maxLevel)
+
+        if var group {
+            group.defaultThinkingLevel = clamped == .off ? nil : clamped
+            store.updateGroup(group)
+        }
         if let sid = sessionId {
-            var cfg = ProviderConfigStore.shared.inferenceConfig(for: sid) ?? SessionInferenceConfig()
+            var cfg = store.inferenceConfig(for: sid) ?? SessionInferenceConfig()
             cfg.thinkingLevel = clamped
-            ProviderConfigStore.shared.setInferenceConfig(cfg, for: sid)
+            store.setInferenceConfig(cfg, for: sid)
         } else {
             pendingThinkingLevel = clamped
         }
         if !transitionSuspended { objectWillChange.send() }
     }
 
-    /// Default thinking level inherited from the active default primary group, or .off.
-    private var defaultGroupThinkingLevel: ThinkingLevel {
-        let store = ProviderConfigStore.shared
-        guard let groupId = store.defaultPrimaryGroupId,
-              let group = store.group(for: groupId) else { return .off }
-        return group.defaultThinkingLevel ?? .off
+    /// The group's ceiling matches the group settings picker: the highest
+    /// capability among reasoning-capable members. Request-time routing still
+    /// clamps the level to the selected member's own capability.
+    private func groupMaxThinkingLevelForChat(_ group: ModelGroup, store: ProviderConfigStore) -> ThinkingLevel {
+        group.memberEntryIds
+            .compactMap { store.entry(for: $0)?.effectiveMaxThinkingLevel }
+            .filter { $0 != .off }
+            .max() ?? .xhigh
     }
+
 
     /// Current thinking level for this session.
     ///
@@ -7969,13 +8000,33 @@ final class AIChatViewModel: ObservableObject, SpeechControlling {
     /// displayed level always matches what will actually be requested (the request
     /// path re-clamps per-model too — AgentProvider: min(level, catalogMax)).
     var currentThinkingLevel: ThinkingLevel {
+        let store = ProviderConfigStore.shared
+        let boundGroup: ModelGroup? = {
+            if let sid = sessionId, let binding = store.binding(for: sid) {
+                if case .group(let id, _) = binding.primarySource { return store.group(for: id) }
+                return nil
+            }
+            let groupId = initialGroupId ?? store.defaultPrimaryGroupId
+            return groupId.flatMap { store.group(for: $0) }
+        }()
         let stored: ThinkingLevel = {
-            if let sid = sessionId, let cfg = ProviderConfigStore.shared.inferenceConfig(for: sid) {
+            // A group's defaults are the source of truth for group-bound chats;
+            // do not let a stale per-session snapshot mask edits in group settings.
+            if let boundGroup { return boundGroup.defaultThinkingLevel ?? .off }
+            if let sid = sessionId, let cfg = store.inferenceConfig(for: sid) {
                 return cfg.thinkingLevel
             }
-            return pendingThinkingLevel ?? defaultGroupThinkingLevel
+            return pendingThinkingLevel ?? .off
         }()
         guard stored.isEnabled else { return stored }
+        if let boundGroup {
+            let levels = Set(boundGroup.memberEntryIds.compactMap { store.entry(for: $0) }
+                .filter { $0.effectiveMaxThinkingLevel != .off }
+                .flatMap { $0.selectableThinkingLevels }).sorted()
+            let clamped = min(stored, groupMaxThinkingLevelForChat(boundGroup, store: store))
+            guard !levels.isEmpty, !levels.contains(clamped) else { return clamped }
+            return levels.last(where: { $0 <= clamped }) ?? levels[0]
+        }
         guard let entry = resolveCurrentEntry() else { return min(stored, .xhigh) }
         let clamped = min(stored, entry.effectiveMaxThinkingLevel)
         // [T-thinking-levels-data-driven] The offered set can be SPARSE (a model
