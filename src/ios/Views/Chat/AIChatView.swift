@@ -3000,17 +3000,7 @@ struct AIChatView: View {
                 }
             }
             quickAction(title: "Model & Controls", systemImage: "shippingbox.fill") { showComposerQuickMenu = false; showComposerControlSheet = true }
-            quickAction(title: voiceInputActive ? "Switch to Text" : "Voice Input", systemImage: voiceInputActive ? "keyboard" : "mic") {
-                showComposerQuickMenu = false
-                if voiceInputActive {
-                    voiceVM.reset(clearTranscript: false)
-                    withAnimation(.easeInOut(duration: 0.2)) { voiceInputActive = false }
-                } else {
-                    vm.voiceUsedInComposition = true
-                    VoiceModePreference.shared.enteredFromText = true
-                    withAnimation(.easeInOut(duration: 0.2)) { voiceInputActive = true }
-                }
-            }
+
         }
         .padding(12)
         .frame(minWidth: 210)
