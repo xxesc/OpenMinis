@@ -2998,6 +2998,12 @@ struct AIChatView: View {
             quickAction(title: "Choose Photos & Videos", systemImage: "photo.on.rectangle") { showComposerQuickMenu = false; showPhotoPicker = true }
             quickAction(title: "Add File", systemImage: "doc") { showComposerQuickMenu = false; showDocumentPicker = true }
             Divider().overlay(Color.primary.opacity(0.08))
+            if speechManager.state == .recording {
+                quickAction(title: "Language: \\(speechManager.languageLabel)", systemImage: "globe") {
+                    showComposerQuickMenu = false
+                    speechManager.showLanguagePicker = true
+                }
+            }
             quickAction(title: "Model & Controls", systemImage: "shippingbox.fill") { showComposerQuickMenu = false; showComposerControlSheet = true }
             quickAction(title: voiceInputActive ? "Switch to Text" : "Voice Input", systemImage: voiceInputActive ? "keyboard" : "mic") {
                 showComposerQuickMenu = false
