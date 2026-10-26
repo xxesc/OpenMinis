@@ -2981,14 +2981,9 @@ struct AIChatView: View {
         .buttonStyle(.plain)
         .accessibilityLabel(Text(showComposerQuickMenu ? "Close quick actions" : "Open quick actions", comment: "Opens attachment and composer controls"))
         .accessibilityHint(Text("Shows attachments, model controls, and voice input", comment: "Quick actions menu hint"))
-        .overlay(alignment: .bottomLeading) {
-            if showComposerQuickMenu {
-                composerQuickActionsPopup
-                    .fixedSize()
-                    .offset(x: 0, y: -54)
-                    .transition(.scale(scale: 0.88, anchor: .bottomLeading).combined(with: .opacity))
-                    .zIndex(100)
-            }
+        .popover(isPresented: $showComposerQuickMenu, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
+            composerQuickActionsPopup
+                .presentationCompactAdaptation(.popover)
         }
     }
 
