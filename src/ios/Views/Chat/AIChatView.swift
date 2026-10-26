@@ -2983,7 +2983,7 @@ struct AIChatView: View {
         .accessibilityHint(Text("Shows attachments, model controls, and voice input", comment: "Quick actions menu hint"))
         .popover(isPresented: $showComposerQuickMenu, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
             composerQuickActionsPopup
-                .presentationCompactAdaptation(.popover)
+                .modifier(ComposerPopoverCompactAdaptation())
         }
     }
 
@@ -4731,6 +4731,16 @@ struct FloatingCircleButtonSurface: ViewModifier {
 /// the same finding as the FAB conversion). The sub-26 branch keeps the original
 /// fill and BOTH shadows byte-for-byte, including the dark-mode-only top shadow
 /// that lifts the bar off the message list.
+private struct ComposerPopoverCompactAdaptation: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 16.4, *) {
+            content.presentationCompactAdaptation(.popover)
+        } else {
+            content
+        }
+    }
+}
+
 private struct ComposerActionGlass: ViewModifier {
     var isCircle = false
     var shape: RoundedRectangle = RoundedRectangle(cornerRadius: 20, style: .continuous)
