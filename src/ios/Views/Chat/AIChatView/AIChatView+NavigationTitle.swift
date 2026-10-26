@@ -243,15 +243,18 @@ extension AIChatView {
             Button {
                 if let s = titlePillSession { titlePillEditSession = s }
             } label: {
-                // [T-navbar-title-size 2026-05-18] iOS 18 and below render
-                // the principal toolbar in a tighter band than iOS 26's
-                // liquid-glass navbar — long CJK titles (e.g. a
-                // "Download and merge Twitter video" style CJK string)
-                // overflowed at 16pt on iPhone Mini/SE and
-                // wrapped under the trailing "…" button. Drop one point
-                // on legacy iOS so they fit cleanly; keep the iOS 26
-                // size unchanged.
-                Text(sessionTitle ?? soulName)
+                HStack(spacing: 6) {
+                    CompanionAvatarView(state: vm.currentCompanionState, size: legacyLayout ? 24 : 28)
+                        .accessibilityHidden(true)
+                    // [T-navbar-title-size 2026-05-18] iOS 18 and below render
+                    // the principal toolbar in a tighter band than iOS 26's
+                    // liquid-glass navbar — long CJK titles (e.g. a
+                    // "Download and merge Twitter video" style CJK string)
+                    // overflowed at 16pt on iPhone Mini/SE and
+                    // wrapped under the trailing "…" button. Drop one point
+                    // on legacy iOS so they fit cleanly; keep the iOS 26
+                    // size unchanged.
+                    Text(sessionTitle ?? soulName)
                     // [T-navbar-title-size 2026-05-18 / -19 / -20] iOS 16-18
                     // principal toolbar is a fixed ~44pt band sitting just
                     // below the status bar with very little reserved padding.
@@ -293,6 +296,7 @@ extension AIChatView {
                         let n = SoulStore.cachedMetadata.name
                         soulName = n.isEmpty ? "Minis" : n
                     }
+                }
             }
             .buttonStyle(.plain)
             .disabled(!canEditTitle)
