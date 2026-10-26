@@ -598,4 +598,85 @@ extension AIChatView {
             )
         }
     }
+
+    /// Unified composer quick action popup.
+    var composerQuickActionsPopup: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            quickAction(title: "Take Photo", systemImage: "camera") {
+                showComposerQuickMenu = false
+                showCamera = true
+            }
+
+            quickAction(title: "Choose Photos & Videos", systemImage: "photo.on.rectangle") {
+                showComposerQuickMenu = false
+                showPhotoPicker = true
+            }
+
+            quickAction(title: "Add File", systemImage: "doc") {
+                showComposerQuickMenu = false
+                showDocumentPicker = true
+            }
+
+            Divider()
+                .padding(.vertical, 2)
+
+            quickAction(title: "Model & Controls", systemImage: "slider.horizontal.3") {
+                showComposerQuickMenu = false
+                showComposerControlSheet = true
+            }
+
+            if voiceInputActive {
+                Menu {
+                    ForEach(SpeechRecognitionManager.supportedLanguages, id: \.id) { item in
+                        Button {
+                            speechManager.setLanguage(item.id)
+                        } label: {
+                            HStack {
+                                Text(item.label)
+                                if speechManager.selectedLanguage == item.id {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "globe")
+                            .font(.system(size: 14, weight: .medium))
+                            .frame(width: 18)
+                        Text("Language: \(speechManager.languageLabel)")
+                            .font(.system(size: 13, weight: .medium))
+                        Spacer()
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .contentShape(Rectangle())
+                }
+            }
+        }
+        .padding(8)
+        .frame(minWidth: 210)
+    }
+
+    private func quickAction(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 14, weight: .medium))
+                    .frame(width: 18)
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                Spacer()
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
 }

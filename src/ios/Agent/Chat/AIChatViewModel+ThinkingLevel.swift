@@ -20,13 +20,32 @@ import os.log
 
 extension AIChatViewModel {
     /// Set thinking level — persists if session exists, otherwise holds in memory.
+    /// When the session is bound to a model group, the slider edits that group's
+    /// reasoning default as well as the active session override so both controls
+    /// remain in sync.
     func setThinkingLevel(_ level: ThinkingLevel) {
-        let maxLevel = resolveCurrentEntry()?.effectiveMaxThinkingLevel ?? .xhigh
+        let store = ProviderConfigStore.shared
+        let groupId: String? = {
+            if let sid = sessionId, let binding = store.binding(for: sid) {
+                if case .group(let id, _) = binding.primarySource { return id }
+                return nil
+            }
+            return initialGroupId ?? store.defaultPrimaryGroupId
+        }()
+        let group = groupId.flatMap { store.group(for: $0) }
+        let maxLevel = group.map { groupMaxThinkingLevelForChat($0, store: store) }
+            ?? resolveCurrentEntry()?.effectiveMaxThinkingLevel
+            ?? .xhigh
         let clamped = level == .off ? level : min(level, maxLevel)
+
+        if var group {
+            group.defaultThinkingLevel = clamped == .off ? nil : clamped
+            store.updateGroup(group)
+        }
         if let sid = sessionId {
-            var cfg = ProviderConfigStore.shared.inferenceConfig(for: sid) ?? SessionInferenceConfig()
+            var cfg = store.inferenceConfig(for: sid) ?? SessionInferenceConfig()
             cfg.thinkingLevel = clamped
-            ProviderConfigStore.shared.setInferenceConfig(cfg, for: sid)
+            store.setInferenceConfig(cfg, for: sid)
         } else {
             pendingThinkingLevel = clamped
         }

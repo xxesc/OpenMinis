@@ -23,44 +23,29 @@ import WebKit
 
 extension AIChatView {
     /// Attachment "+" button.
-    /// iOS 16's Menu has a vertical alignment bug inside HStack that causes it
-    /// to sit higher than sibling buttons when the keyboard is up.
-    /// Use confirmationDialog on iOS 16, Menu on iOS 17+.
     @ViewBuilder
     private var attachmentMenuButton: some View {
-        // [T-ios-voiceover-labels] Labelled on the shared `icon` so both the
-        // iOS 17 Menu branch and the iOS 16 confirmationDialog branch below
-        // announce the same thing; otherwise VoiceOver reads "plus".
-        let icon = Image(systemName: "plus")
-            .font(.system(size: 18, weight: .medium))
-            .foregroundStyle(ChatColors.secondaryText)
-            .frame(width: 34, height: 34)
-            .accessibilityLabel(Text("Add attachment", comment: "VoiceOver label for the attachment button"))
-            .background(ChatColors.inputIconBg)
-            .clipShape(Circle())
-            .overlay(Circle().stroke(ChatColors.inputIconBorder, lineWidth: 0.5))
-
-        if #available(iOS 17, *) {
-            Menu {
-                Button { showCamera = true } label: { Label("Take Photo", systemImage: "camera") }
-                Button { showPhotoPicker = true } label: { Label("Choose Photos & Videos", systemImage: "photo.on.rectangle") }
-                Button { showDocumentPicker = true } label: { Label("Add File", systemImage: "doc") }
-            } label: {
-                icon
+        Button {
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                showComposerQuickMenu.toggle()
             }
-        } else {
-            Button { showAttachmentMenu = true } label: {
-                icon
-            }
-            .confirmationDialog("Add Attachment", isPresented: $showAttachmentMenu) {
-                Button { showCamera = true } label: { Label("Take Photo", systemImage: "camera") }
-                Button { showPhotoPicker = true } label: { Label("Choose Photos & Videos", systemImage: "photo.on.rectangle") }
-                Button { showDocumentPicker = true } label: { Label("Add File", systemImage: "doc") }
-            }
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(ChatColors.secondaryText)
+                .frame(width: 34, height: 34)
+                .rotationEffect(.degrees(showComposerQuickMenu ? 45 : 0))
+                .modifier(ComposerActionGlass(isCircle: true))
+                .accessibilityLabel(Text("Add attachment", comment: "VoiceOver label for the attachment button"))
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $showComposerQuickMenu, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
+            composerQuickActionsPopup
+                .modifier(ComposerPopoverCompactAdaptation())
         }
     }
 
-    /// Bottom toolbar under the text field (+ / edit-exit / mic / send).
+    /// Bottom toolbar under the text field (+ / edit-exit / unified send-or-mic).
     /// Returns AnyView to keep `inputBar`'s generic type compact; SwiftUI
     /// runtime demangle chokes on deep nested types otherwise.
     var inputBottomRow: AnyView {
@@ -76,8 +61,13 @@ extension AIChatView {
                 readAloudToolbarToggle
                 Spacer()
             }
-            micButtonContainer
-            sendButton
+            if voiceInputActive || speechManager.state == .recording || (!canSend && !vm.isProcessing) {
+                micButtonContainer
+                    .transition(.scale(scale: 0.85).combined(with: .opacity))
+            } else {
+                sendButton
+                    .transition(.scale(scale: 0.85).combined(with: .opacity))
+            }
         }
         return AnyView(row)
     }

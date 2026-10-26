@@ -250,6 +250,8 @@ struct AIChatView: View {
     /// callback here and committing the freshest one makes the debounce a
     /// genuine trailing edge.
     @State var latestInputBarFrameH: CGFloat = 0
+    @State var showComposerQuickMenu = false
+    @State var showComposerControlSheet = false
     /// [T-send-composer-shrink-absorb] The same measurement, handed to the
     /// message list the moment it is made (a reference box: writing it does not
     /// re-evaluate this body). See `ComposerShrinkAbsorption`.
@@ -1831,5 +1833,8 @@ struct AIChatView: View {
         // descendants (e.g. ToolCapsuleView's long-press menu) can react to
         // `vm.isProcessing` without threading the vm through every level.
         .environmentObject(vm)
+        .sheet(isPresented: $showComposerControlSheet) {
+            ComposerControlSheet(vm: vm)
+        }
     }
 }

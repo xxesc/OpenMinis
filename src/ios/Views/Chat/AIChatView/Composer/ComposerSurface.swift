@@ -25,6 +25,48 @@ import WebKit
 
 // MARK: - Composer Surface
 
+/// ViewModifier for iOS 16.4+ compact adaptation on popover.
+struct ComposerPopoverCompactAdaptation: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 16.4, *) {
+            content.presentationCompactAdaptation(.popover)
+        } else {
+            content
+        }
+    }
+}
+
+/// Glass surface modifier for composer action buttons.
+struct ComposerActionGlass: ViewModifier {
+    var isCircle: Bool = false
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            if isCircle {
+                content
+                    .glassEffect(.regular.interactive(), in: .circle)
+                    .contentShape(Circle())
+            } else {
+                content
+                    .glassEffect(.regular.interactive(), in: .capsule)
+                    .contentShape(Capsule())
+            }
+        } else {
+            if isCircle {
+                content
+                    .background(ChatColors.inputIconBg)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(ChatColors.inputIconBorder, lineWidth: 0.5))
+            } else {
+                content
+                    .background(ChatColors.inputIconBg)
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(ChatColors.inputIconBorder, lineWidth: 0.5))
+            }
+        }
+    }
+}
+
 /// Circular surface for the small floating buttons over the message list
 /// (scroll up / down, browser downloads).
 ///
