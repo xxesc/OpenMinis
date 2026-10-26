@@ -2999,7 +2999,7 @@ struct AIChatView: View {
             quickAction(title: "Add File", systemImage: "doc") { showComposerQuickMenu = false; showDocumentPicker = true }
             Divider().overlay(Color.primary.opacity(0.08))
             if speechManager.state == .recording {
-                quickAction(title: "Language: \\(speechManager.languageLabel)", systemImage: "globe") {
+                quickAction(title: "Language: \(speechManager.languageLabel)", systemImage: "globe") {
                     showComposerQuickMenu = false
                     speechManager.showLanguagePicker = true
                 }
@@ -4741,16 +4741,24 @@ private struct ComposerActionGlass: ViewModifier {
     var shape: RoundedRectangle = RoundedRectangle(cornerRadius: 20, style: .continuous)
 
     func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            content
-                .glassEffect(.regular.interactive(), in: isCircle ? AnyShape(Circle()) : AnyShape(shape))
-        } else {
-            content
-                .background(.regularMaterial, in: isCircle ? AnyShape(Circle()) : AnyShape(shape))
-                .overlay {
-                    (isCircle ? AnyShape(Circle()) : AnyShape(shape))
-                        .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
+        Group {
+            if isCircle {
+                if #available(iOS 26.0, *) {
+                    content.glassEffect(.regular.interactive(), in: Circle())
+                } else {
+                    content
+                        .background(.regularMaterial, in: Circle())
+                        .overlay { Circle().strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5) }
                 }
+            } else {
+                if #available(iOS 26.0, *) {
+                    content.glassEffect(.regular.interactive(), in: shape)
+                } else {
+                    content
+                        .background(.regularMaterial, in: shape)
+                        .overlay { shape.strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5) }
+                }
+            }
         }
     }
 }
