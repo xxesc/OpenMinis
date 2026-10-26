@@ -180,6 +180,11 @@ extension AIChatView {
         let soulName: String = sessionTitle ?? "Minis"
         let canEditTitle = titlePillSession != nil
 
+        let legacyLayout = !ProcessInfo.processInfo.isiOSAppOnMac && {
+            if #available(iOS 26, *) { return false }
+            return true
+        }()
+
         return HStack(spacing: 8) {
             CompanionAvatarView(state: vm.currentCompanionState, size: legacyLayout ? 24 : 28)
                 .accessibilityHidden(true)
@@ -198,7 +203,7 @@ extension AIChatView {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, legacyLayout ? 2 : 4)
-        .padding(.top, legacyLayout ? 4 : 0)
+        .padding(.top, legacyLayout ? 2 : 0)
         .modifier(NavTitleFrameModifier())
         .dynamicTypeSize(.large)
         .blur(radius: titleIsVisuallyLocked ? 8 : 0)
@@ -206,17 +211,9 @@ extension AIChatView {
         .animation(.easeInOut(duration: 0.15), value: titleIsVisuallyLocked)
     }
 
+    @ViewBuilder
     private var thinkingLevelBadge: some View {
         let level = vm.currentThinkingLevel
-        // Sits on nav-bar row 2 (the 9pt "provider · model" line). Kept a
-        // touch smaller than that text (8pt / 6px icon) so it stays the most
-        // compact label in the title and never larger than the "is thinking…"
-        // intensity pill in the message list.
-        //
-        // Also rendered when the level is Off (reasoning-capable model with
-        // thinking disabled): the pill then reads icon + "Off" as a tap target
-        // for enabling deep thinking. Dim the icon in that state — matches the
-        // 0.4 Off-row convention in ThinkingLevelSheetView.
         HStack(spacing: 2) {
             Image("ThinkingIcon")
                 .resizable()
@@ -245,9 +242,6 @@ extension AIChatView {
         }
     }
 
-    /// True when the current session's navbar title must render blurred —
-    /// observed via `@ObservedObject lockStore` so toggles to the lock
-    /// state push a re-render of the toolbar synchronously with the gate.
     private var titleIsVisuallyLocked: Bool {
         guard let sid = vm.sessionId, !sid.isEmpty else { return false }
         return lockStore.isVisuallyLocked(sid)
