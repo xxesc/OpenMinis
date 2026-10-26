@@ -51,7 +51,6 @@ extension AIChatView {
     var inputBottomRow: AnyView {
         let row = HStack(spacing: 12) {
             attachmentMenuButton
-            slashMenuButton
             if vm.editingMessageIndex != nil { editExitButton }
             Spacer()
             // Mutually exclusive with editExitButton: while editing a past
@@ -200,21 +199,7 @@ extension AIChatView {
         .accessibilityHint(Text("Toggles reading replies aloud", comment: "VoiceOver hint for the read-replies toggle"))
     }
 
-    /// Container button that opens the bottom controls sheet (Model, Reasoning, Context Usage).
-    private var slashMenuButton: some View {
-        Button {
-            showComposerControlSheet = true
-        } label: {
-            Image(systemName: "shippingbox.fill")
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(ChatColors.secondaryText)
-                .frame(width: 34, height: 34)
-                .background(ChatColors.inputIconBg)
-                .clipShape(Circle())
-                .overlay(Circle().stroke(ChatColors.inputIconBorder, lineWidth: 0.5))
-        }
-        .accessibilityLabel(Text("Model & Controls", comment: "Bottom sheet toggle for model, reasoning, and context usage"))
-    }
+
 
     /// "Exit Edit Mode" capsule shown while editing a past message.
     private var editExitButton: some View {
