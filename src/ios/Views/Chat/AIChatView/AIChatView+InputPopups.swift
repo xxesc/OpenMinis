@@ -644,7 +644,7 @@ extension AIChatView {
                         Image(systemName: "globe")
                             .font(.system(size: 14, weight: .medium))
                             .frame(width: 18)
-                        Text("Language: \(speechManager.currentLanguageDisplayName)")
+                        Text("Language: \(speechManager.displayName(for: speechManager.locale))")
                             .font(.system(size: 13, weight: .medium))
                         Spacer()
                         Image(systemName: "chevron.up.chevron.down")
