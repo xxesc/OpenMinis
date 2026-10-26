@@ -96,6 +96,16 @@ extension AIChatViewModel {
         return levels.last(where: { $0 <= clamped }) ?? levels[0]
     }
 
+    /// The group's ceiling matches the group settings picker: the highest
+    /// capability among reasoning-capable members. Request-time routing still
+    /// clamps the level to the selected member's own capability.
+    private func groupMaxThinkingLevelForChat(_ group: ModelGroup, store: ProviderConfigStore) -> ThinkingLevel {
+        group.memberEntryIds
+            .compactMap { store.entry(for: $0)?.effectiveMaxThinkingLevel }
+            .filter { $0 != .off }
+            .max() ?? .xhigh
+    }
+
     /// Flush pending thinking level to the store once sessionId is available.
     /// Returns `true` if a user-chosen level was written, so the caller can
     /// keep the group-default seeding (createInitialBinding) from clobbering it.

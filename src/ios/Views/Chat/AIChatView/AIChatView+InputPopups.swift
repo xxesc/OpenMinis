@@ -627,13 +627,13 @@ extension AIChatView {
 
             if voiceInputActive {
                 Menu {
-                    ForEach(SpeechRecognitionManager.supportedLanguages, id: \.id) { item in
+                    ForEach(speechManager.availableLocales.prefix(15), id: \.identifier) { item in
                         Button {
-                            speechManager.setLanguage(item.id)
+                            speechManager.setLanguage(item)
                         } label: {
                             HStack {
-                                Text(item.label)
-                                if speechManager.selectedLanguage == item.id {
+                                Text(speechManager.displayName(for: item))
+                                if speechManager.locale.identifier == item.identifier {
                                     Image(systemName: "checkmark")
                                 }
                             }
@@ -644,7 +644,7 @@ extension AIChatView {
                         Image(systemName: "globe")
                             .font(.system(size: 14, weight: .medium))
                             .frame(width: 18)
-                        Text("Language: \(speechManager.languageLabel)")
+                        Text("Language: \(speechManager.currentLanguageDisplayName)")
                             .font(.system(size: 13, weight: .medium))
                         Spacer()
                         Image(systemName: "chevron.up.chevron.down")

@@ -454,3 +454,49 @@ private struct LiquidCardSurface: ViewModifier {
     }
 }
 
+/// Dynamic ambient backdrop with subtle color glow blobs for liquid glass surfaces.
+struct LiquidAmbientBackdrop: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        GeometryReader { proxy in
+            let w = proxy.size.width
+            let h = proxy.size.height
+            ZStack {
+                (colorScheme == .dark ? Color(red: 0.08, green: 0.08, blue: 0.11) : Color(red: 0.94, green: 0.95, blue: 0.97))
+                    .ignoresSafeArea()
+
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: colorScheme == .dark
+                                ? [Color.cyan.opacity(0.18), Color.clear]
+                                : [Color.cyan.opacity(0.15), Color.clear],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: max(w, h) * 0.45
+                        )
+                    )
+                    .frame(width: max(w, h) * 0.9, height: max(w, h) * 0.9)
+                    .offset(x: -w * 0.25, y: -h * 0.2)
+                    .blur(radius: 40)
+
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: colorScheme == .dark
+                                ? [Color.indigo.opacity(0.16), Color.clear]
+                                : [Color.blue.opacity(0.12), Color.clear],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: max(w, h) * 0.45
+                        )
+                    )
+                    .frame(width: max(w, h) * 0.9, height: max(w, h) * 0.9)
+                    .offset(x: w * 0.25, y: h * 0.2)
+                    .blur(radius: 45)
+            }
+        }
+    }
+}
+
