@@ -340,7 +340,7 @@ struct AIChatView: View {
     @State private var showBrowserSheet = false
     @State private var showTerminal = false
     @State private var terminalInitCommand: String?
-    @State private var showAttachmentMenu = false
+    @State private var showComposerQuickMenu = false
     @State private var isDropTargeted = false
     @State private var showCamera = false
     @State private var showPhotoPicker = false
@@ -2964,38 +2964,69 @@ struct AIChatView: View {
     /// iOS 16's Menu has a vertical alignment bug inside HStack that causes it
     /// to sit higher than sibling buttons when the keyboard is up.
     /// Use confirmationDialog on iOS 16, Menu on iOS 17+.
-    @ViewBuilder
     private var attachmentMenuButton: some View {
-        // [T-ios-voiceover-labels] Labelled on the shared `icon` so both the
-        // iOS 17 Menu branch and the iOS 16 confirmationDialog branch below
-        // announce the same thing; otherwise VoiceOver reads "plus".
-        let icon = Image(systemName: "plus")
-            .font(.system(size: 18, weight: .medium))
-            .foregroundStyle(ChatColors.secondaryText)
-            .frame(width: 34, height: 34)
-            .accessibilityLabel(Text("Add attachment", comment: "VoiceOver label for the attachment button"))
-            .background(ChatColors.inputIconBg)
-            .clipShape(Circle())
-            .overlay(Circle().stroke(ChatColors.inputIconBorder, lineWidth: 0.5))
-
-        if #available(iOS 17, *) {
-            Menu {
-                Button { showCamera = true } label: { Label("Take Photo", systemImage: "camera") }
-                Button { showPhotoPicker = true } label: { Label("Choose Photos & Videos", systemImage: "photo.on.rectangle") }
-                Button { showDocumentPicker = true } label: { Label("Add File", systemImage: "doc") }
-            } label: {
-                icon
+        Button {
+            withAnimation(.spring(response: 0.34, dampingFraction: 0.76)) {
+                showComposerQuickMenu.toggle()
             }
-        } else {
-            Button { showAttachmentMenu = true } label: {
-                icon
-            }
-            .confirmationDialog("Add Attachment", isPresented: $showAttachmentMenu) {
-                Button { showCamera = true } label: { Label("Take Photo", systemImage: "camera") }
-                Button { showPhotoPicker = true } label: { Label("Choose Photos & Videos", systemImage: "photo.on.rectangle") }
-                Button { showDocumentPicker = true } label: { Label("Add File", systemImage: "doc") }
+        } label: {
+            Image(systemName: showComposerQuickMenu ? "xmark" : "plus")
+                .font(.system(size: showComposerQuickMenu ? 14 : 18, weight: .semibold, design: .rounded))
+                .foregroundStyle(ChatColors.secondaryText)
+                .rotationEffect(.degrees(showComposerQuickMenu ? 45 : 0))
+                .frame(width: 38, height: 38)
+                .contentShape(Circle())
+                .modifier(ComposerActionGlass(isCircle: true))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(showComposerQuickMenu ? "Close quick actions" : "Open quick actions", comment: "Opens attachment and composer controls"))
+        .accessibilityHint(Text("Shows attachments, model controls, and voice input", comment: "Quick actions menu hint"))
+        .overlay(alignment: .bottomLeading) {
+            if showComposerQuickMenu {
+                composerQuickActionsPopup
+                    .fixedSize()
+                    .offset(x: 0, y: -54)
+                    .transition(.scale(scale: 0.88, anchor: .bottomLeading).combined(with: .opacity))
+                    .zIndex(100)
             }
         }
+    }
+
+    private var composerQuickActionsPopup: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            quickAction(title: "Take Photo", systemImage: "camera") { showComposerQuickMenu = false; showCamera = true }
+            quickAction(title: "Choose Photos & Videos", systemImage: "photo.on.rectangle") { showComposerQuickMenu = false; showPhotoPicker = true }
+            quickAction(title: "Add File", systemImage: "doc") { showComposerQuickMenu = false; showDocumentPicker = true }
+            Divider().overlay(Color.primary.opacity(0.08))
+            quickAction(title: "Model & Controls", systemImage: "shippingbox.fill") { showComposerQuickMenu = false; showComposerControlSheet = true }
+            quickAction(title: voiceInputActive ? "Switch to Text" : "Voice Input", systemImage: voiceInputActive ? "keyboard" : "mic") {
+                showComposerQuickMenu = false
+                if voiceInputActive {
+                    voiceVM.reset(clearTranscript: false)
+                    withAnimation(.easeInOut(duration: 0.2)) { voiceInputActive = false }
+                } else {
+                    vm.voiceUsedInComposition = true
+                    VoiceModePreference.shared.enteredFromText = true
+                    withAnimation(.easeInOut(duration: 0.2)) { voiceInputActive = true }
+                }
+            }
+        }
+        .padding(12)
+        .frame(minWidth: 210)
+        .modifier(ComposerActionGlass(shape: RoundedRectangle(cornerRadius: 20, style: .continuous)))
+    }
+
+    private func quickAction(title: LocalizedStringKey, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(ChatColors.primaryText)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     /// Bottom toolbar under the text field (+ / edit-exit / mic / send).
@@ -3004,7 +3035,6 @@ struct AIChatView: View {
     private var inputBottomRow: AnyView {
         let row = HStack(spacing: 12) {
             attachmentMenuButton
-            slashMenuButton
             if vm.editingMessageIndex != nil { editExitButton }
             Spacer()
             // Mutually exclusive with editExitButton: while editing a past
@@ -3014,8 +3044,17 @@ struct AIChatView: View {
                 readAloudToolbarToggle
                 Spacer()
             }
-            micButtonContainer
-            sendButton
+            ZStack {
+                if voiceInputActive || speechManager.state == .recording || (!canSend && !vm.isProcessing) {
+                    micButtonContainer
+                        .transition(.scale.combined(with: .opacity))
+                } else {
+                    sendButton
+                        .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .frame(width: 38, height: 38)
+            .animation(.spring(response: 0.28, dampingFraction: 0.78), value: voiceInputActive || speechManager.state == .recording)
         }
         return AnyView(row)
     }
@@ -3216,6 +3255,7 @@ struct AIChatView: View {
                 withAnimation(.easeInOut(duration: 0.2)) { voiceInputActive = true }
             }
         }, isVoiceActive: voiceInputActive)
+        .modifier(ComposerActionGlass(isCircle: true))
     }
 
     /// Send / Enqueue / Stop circular button.
@@ -3235,6 +3275,7 @@ struct AIChatView: View {
                        canEnqueue: canEnqueue,
                        onSend: { performSend() },
                        onEnqueue: { performEnqueue() })
+            .modifier(ComposerActionGlass(isCircle: true))
     }
 
     /// Either the multi-line text field or the audio waveform, depending on
@@ -4689,6 +4730,25 @@ struct FloatingCircleButtonSurface: ViewModifier {
 /// the same finding as the FAB conversion). The sub-26 branch keeps the original
 /// fill and BOTH shadows byte-for-byte, including the dark-mode-only top shadow
 /// that lifts the bar off the message list.
+private struct ComposerActionGlass: ViewModifier {
+    var isCircle = false
+    var shape: RoundedRectangle = RoundedRectangle(cornerRadius: 20, style: .continuous)
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+                .glassEffect(.regular.interactive(), in: isCircle ? AnyShape(Circle()) : AnyShape(shape))
+        } else {
+            content
+                .background(.regularMaterial, in: isCircle ? AnyShape(Circle()) : AnyShape(shape))
+                .overlay {
+                    (isCircle ? AnyShape(Circle()) : AnyShape(shape))
+                        .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
+                }
+        }
+    }
+}
+
 private struct ComposerSurface: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
 
@@ -4697,42 +4757,46 @@ private struct ComposerSurface: ViewModifier {
     }
 
     func body(content: Content) -> some View {
-        content
-            .background {
-                ZStack {
-                    shape.fill(.ultraThinMaterial)
-
-                    shape.fill(
-                        LinearGradient(
-                            colors: colorScheme == .dark
-                                ? [Color.white.opacity(0.08), Color.white.opacity(0.02)]
-                                : [Color.white.opacity(0.68), Color.white.opacity(0.38)],
-                            startPoint: .top,
-                            endPoint: .bottom
+        if #available(iOS 26.0, *) {
+            content
+                .glassEffect(.regular, in: shape)
+                .clipShape(shape)
+        } else {
+            content
+                .background {
+                    ZStack {
+                        shape.fill(.ultraThinMaterial)
+                        shape.fill(
+                            LinearGradient(
+                                colors: colorScheme == .dark
+                                    ? [Color.white.opacity(0.08), Color.white.opacity(0.02)]
+                                    : [Color.white.opacity(0.68), Color.white.opacity(0.38)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
                         )
-                    )
-
-                    shape.strokeBorder(
-                        LinearGradient(
-                            stops: [
-                                .init(color: colorScheme == .dark ? Color.white.opacity(0.42) : Color.white.opacity(0.92), location: 0.0),
-                                .init(color: colorScheme == .dark ? Color.white.opacity(0.12) : Color.white.opacity(0.38), location: 0.4),
-                                .init(color: colorScheme == .dark ? Color.white.opacity(0.03) : Color.white.opacity(0.08), location: 1.0)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        ),
-                        lineWidth: 0.65
+                        shape.strokeBorder(
+                            LinearGradient(
+                                stops: [
+                                    .init(color: colorScheme == .dark ? Color.white.opacity(0.42) : Color.white.opacity(0.92), location: 0.0),
+                                    .init(color: colorScheme == .dark ? Color.white.opacity(0.12) : Color.white.opacity(0.38), location: 0.4),
+                                    .init(color: colorScheme == .dark ? Color.white.opacity(0.03) : Color.white.opacity(0.08), location: 1.0)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            lineWidth: 0.65
+                        )
+                    }
+                    .shadow(
+                        color: colorScheme == .dark ? Color.black.opacity(0.35) : Color.black.opacity(0.08),
+                        radius: 12,
+                        x: 0,
+                        y: 4
                     )
                 }
-                .shadow(
-                    color: colorScheme == .dark ? Color.black.opacity(0.35) : Color.black.opacity(0.08),
-                    radius: 12,
-                    x: 0,
-                    y: 4
-                )
-            }
-            .clipShape(shape)
+                .clipShape(shape)
+        }
     }
 }
 
@@ -6075,9 +6139,7 @@ private struct MicButton: View {
             .font(.system(size: isVoiceActive ? 15 : 18, weight: .medium))
             .foregroundStyle(ChatColors.secondaryText)
             .frame(width: Self.diameter, height: Self.diameter)
-            .background(ChatColors.inputIconBg)
-            .clipShape(Circle())
-            .overlay(Circle().stroke(ChatColors.inputIconBorder, lineWidth: 0.5))
+            .contentShape(Circle())
             .scaleEffect(micPressed ? 0.9 : 1.0)
             .contentShape(Circle())
             .gesture(
