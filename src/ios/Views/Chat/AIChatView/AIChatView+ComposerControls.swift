@@ -29,15 +29,15 @@ extension AIChatView {
             showComposerQuickMenu.toggle()
         } label: {
             Image(systemName: "plus")
-                .font(.system(size: 18, weight: .medium))
+                .font(.system(size: 19, weight: .medium))
                 .foregroundStyle(ChatColors.secondaryText)
-                .frame(width: 36, height: 36)
+                .frame(width: 38, height: 38)
                 .modifier(ComposerActionGlass(isCircle: true))
                 .accessibilityLabel(Text("Add attachment", comment: "VoiceOver label for the attachment button"))
         }
         .buttonStyle(.plain)
-        .frame(width: 36, height: 36)
-        .padding(.bottom, 3)
+        .frame(width: 38, height: 38)
+        .padding(.bottom, 8.5)
         .popover(isPresented: $showComposerQuickMenu, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
             composerQuickActionsPopup
                 .modifier(ComposerPopoverCompactAdaptation())
@@ -56,8 +56,8 @@ extension AIChatView {
                     .transition(.scale(scale: 0.85).combined(with: .opacity))
             }
         }
-        .frame(width: 36, height: 36)
-        .padding(.bottom, 3)
+        .frame(width: 38, height: 38)
+        .padding(.bottom, 8.5)
     }
 
     /// Bottom toolbar under the text field (+ / edit-exit / unified send-or-mic).
@@ -356,9 +356,9 @@ extension AIChatView {
                     }
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .frame(minHeight: 42)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .frame(minHeight: 55)
             return AnyView(waveform)
         }
         _ = returnKeyBehavior  // [T-send-longpress-return-mode] dependency, see declaration
@@ -455,9 +455,9 @@ extension AIChatView {
                 field.fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10.5)
-        .frame(minHeight: 42)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 16.5)
+        .frame(minHeight: 55)
         .overlay(alignment: .top) {
             if composerResizeEnabled { composerResizeHandle }
         }
