@@ -91,56 +91,69 @@ extension AIChatView {
                 .background(Color.yellow.opacity(0.08))
             }
 
-            // [T-ios-chat-body-stack-erase] Same as body: erase the composer
-            // before its modifier chain so each opaque step copies a pointer,
-            // not the whole composer (30 dynamic stack buffers in this closure).
-            AnyView(VStack(spacing: 5) {
-                // [T-paste-placeholder] Stashed long pastes referenced by the
-                // draft. Removal also strips the literal from the input text.
-                if !vm.pastedTexts.isEmpty {
-                    PastedTextChipRow(pastedTexts: vm.pastedTexts) { id in
-                        vm.removePastedText(id: id)
+            // Single-line composer layout: [+] [Composer Capsule] [Mic / Send]
+            AnyView(HStack(alignment: .bottom, spacing: 8) {
+                attachmentMenuButton
+
+                VStack(spacing: 4) {
+                    if !vm.pastedTexts.isEmpty {
+                        PastedTextChipRow(pastedTexts: vm.pastedTexts) { id in
+                            vm.removePastedText(id: id)
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.top, 4)
+                    }
+                    if !vm.attachments.isEmpty || vm.loadingVideoCount > 0 {
+                        ScrollView(.vertical, showsIndicators: true) {
+                            inputAttachmentGrid
+                                .background(GeometryReader { geo in
+                                    Color.clear.preference(key: AttachmentGridHeightKey.self, value: geo.size.height)
+                                })
+                        }
+                        .frame(height: min(attachmentGridHeight, 160))
+                        .onPreferenceChange(AttachmentGridHeightKey.self) { attachmentGridHeight = $0 }
+                        .padding(.horizontal, 6)
+                        .padding(.top, 4)
+                    }
+                    if vm.editingMessageIndex != nil {
+                        editExitButton
+                            .padding(.top, 4)
+                    }
+
+                    inputFieldOrWaveform
+                }
+                .contentShape(RoundedRectangle(cornerRadius: 22))
+                .onTapGesture { inputFocused = true }
+                .overlay(alignment: .topTrailing) {
+                    if hasInjectedShareContent && hasMovableShareContent {
+                        Button { showMoveToSheet = true } label: {
+                            Label("Move to…", systemImage: "arrow.right.circle")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(ChatColors.secondaryText)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(.ultraThinMaterial)
+                                .clipShape(Capsule())
+                        }
+                        .padding(.top, 6)
+                        .padding(.trailing, 10)
                     }
                 }
-                // Attachment preview chips — 3 per row
-                if !vm.attachments.isEmpty || vm.loadingVideoCount > 0 {
-                    ScrollView(.vertical, showsIndicators: true) {
-                        inputAttachmentGrid
-                            .background(GeometryReader { geo in
-                                Color.clear.preference(key: AttachmentGridHeightKey.self, value: geo.size.height)
-                            })
-                    }
-                    .frame(height: min(attachmentGridHeight, 160))
-                    .onPreferenceChange(AttachmentGridHeightKey.self) { attachmentGridHeight = $0 }
-                    .padding(.top, 8)
+                .modifier(ComposerSurface())
+                .overlay {
+                    ComposerContextGlow(tier: vm.contextUsage?.tier ?? .normal)
                 }
 
-                inputFieldOrWaveform
-
-                inputBottomRow
-                    // [T-ios-de-voice-toolbar] Measure the row so the
-                    // read-aloud toggle can decide whether its label fits.
-                    // `onGeometryChange`, NOT a GeometryReader background —
-                    // [T-ios-geometry-observer-crash] traced an async-renderer
-                    // SIGTRAP to that scaffold, and this file already
-                    // standardised on the observer for exactly that reason.
-                    .onGeometryChange(for: CGFloat.self) { proxy in
-                        proxy.size.width
-                    } action: { w in
-                        guard w > 0, abs(w - inputBottomRowWidth) > 0.5 else { return }
-                        inputBottomRowWidth = w
-                    }
-                    // Padding applied AFTER the observer, so the measured
-                    // width is the row's own usable space and needs no
-                    // constant subtracted back out of it.
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 10)
-            })
-            .contentShape(RoundedRectangle(cornerRadius: 20))
-            .onTapGesture { inputFocused = true }
+                trailingActionGroup
+            }
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.width
+            } action: { w in
+                guard w > 0, abs(w - inputBottomRowWidth) > 0.5 else { return }
+                inputBottomRowWidth = w
+            }
             .onReceive(speechManager.$recognizedText) { text in
                 guard speechManager.state == .recording || !text.isEmpty else { return }
-                // Append only the new delta to preserve existing input text
                 let newLength = text.count
                 if newLength > lastRecognizedLength {
                     let delta = String(text.dropFirst(lastRecognizedLength))
@@ -148,38 +161,9 @@ extension AIChatView {
                 }
                 lastRecognizedLength = newLength
             }
-            .overlay(alignment: .topTrailing) {
-                // Only offer "Move to…" when there is actually something to
-                // move. hasInjectedShareContent is flipped true after EVERY
-                // share ingestion, even when the share produced no text and no
-                // attachments (e.g. an unrecognized item, or all items diverted
-                // to Provider-import). Gate on real movable content so the pill
-                // doesn't linger over an empty composer. [T-ios-moveto-empty-content]
-                if hasInjectedShareContent && hasMovableShareContent {
-                    Button { showMoveToSheet = true } label: {
-                        Label("Move to…", systemImage: "arrow.right.circle")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(ChatColors.secondaryText)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Capsule())
-                    }
-                    .padding(.top, 6)
-                    .padding(.trailing, 10)
-                }
-            }
-            .modifier(ComposerSurface())
-            // [T-ios-context-usage-hint] Inner glow along the glass wall.
-            // An overlay ABOVE the material (so the Liquid Glass backdrop
-            // sampler never sees it) that clips itself to the same shape, so
-            // it cannot spill past the outline (see ComposerContextGlow).
-            .overlay {
-                ComposerContextGlow(tier: vm.contextUsage?.tier ?? .normal)
-            }
             .frame(maxWidth: maxContentWidth)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6))
             // [T-ios-geometry-observer-crash] onGeometryChange replaces the
             // GeometryReader scaffold (async-renderer SIGTRAP — see the
             // floating-bar site). Fires with the initial value too, so the

@@ -22,19 +22,16 @@ import UniformTypeIdentifiers
 import WebKit
 
 extension AIChatView {
-    /// Attachment "+" button.
+    /// Attachment "+" button (positioned outside the composer capsule).
     @ViewBuilder
-    private var attachmentMenuButton: some View {
+    var attachmentMenuButton: some View {
         Button {
-            withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                showComposerQuickMenu.toggle()
-            }
+            showComposerQuickMenu.toggle()
         } label: {
             Image(systemName: "plus")
                 .font(.system(size: 18, weight: .medium))
                 .foregroundStyle(ChatColors.secondaryText)
-                .frame(width: 34, height: 34)
-                .rotationEffect(.degrees(showComposerQuickMenu ? 45 : 0))
+                .frame(width: 36, height: 36)
                 .modifier(ComposerActionGlass(isCircle: true))
                 .accessibilityLabel(Text("Add attachment", comment: "VoiceOver label for the attachment button"))
         }
@@ -42,6 +39,20 @@ extension AIChatView {
         .popover(isPresented: $showComposerQuickMenu, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
             composerQuickActionsPopup
                 .modifier(ComposerPopoverCompactAdaptation())
+        }
+    }
+
+    /// Trailing action group outside the composer (mic or send button).
+    @ViewBuilder
+    var trailingActionGroup: some View {
+        HStack(spacing: 8) {
+            if voiceInputActive || speechManager.state == .recording || (!canSend && !vm.isProcessing) {
+                micButtonContainer
+                    .transition(.scale(scale: 0.85).combined(with: .opacity))
+            } else {
+                sendButton
+                    .transition(.scale(scale: 0.85).combined(with: .opacity))
+            }
         }
     }
 
@@ -202,7 +213,7 @@ extension AIChatView {
 
 
     /// "Exit Edit Mode" capsule shown while editing a past message.
-    private var editExitButton: some View {
+    var editExitButton: some View {
         Button {
             vm.cancelEdit()
         } label: {
@@ -341,9 +352,8 @@ extension AIChatView {
                     }
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, topPadding)
-            .padding(.bottom, 10)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
             return AnyView(waveform)
         }
         _ = returnKeyBehavior  // [T-send-longpress-return-mode] dependency, see declaration
@@ -440,9 +450,8 @@ extension AIChatView {
                 field.fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, topPadding)
-        .padding(.bottom, 10)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
         .overlay(alignment: .top) {
             if composerResizeEnabled { composerResizeHandle }
         }
