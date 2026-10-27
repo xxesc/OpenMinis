@@ -122,7 +122,7 @@ extension AIChatView {
 
                     inputFieldOrWaveform
                 }
-                .contentShape(RoundedRectangle(cornerRadius: 22))
+                .contentShape(RoundedRectangle(cornerRadius: 21, style: .continuous))
                 .onTapGesture { inputFocused = true }
                 .overlay(alignment: .topTrailing) {
                     if hasInjectedShareContent && hasMovableShareContent {

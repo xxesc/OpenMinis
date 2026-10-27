@@ -39,7 +39,7 @@ struct MicButton: View {
     /// Press feedback for the custom-gesture button.
     @State private var micPressed = false
 
-    private static let diameter: CGFloat = 34
+    private static let diameter: CGFloat = 36
 
     var body: some View {
         // NOT a Button: SwiftUI's Button has a generous system touch-slop / touch-
@@ -53,9 +53,7 @@ struct MicButton: View {
             .font(.system(size: isVoiceActive ? 15 : 18, weight: .medium))
             .foregroundStyle(ChatColors.secondaryText)
             .frame(width: Self.diameter, height: Self.diameter)
-            .background(ChatColors.inputIconBg)
-            .clipShape(Circle())
-            .overlay(Circle().stroke(ChatColors.inputIconBorder, lineWidth: 0.5))
+            .modifier(ComposerActionGlass(isCircle: true))
             .scaleEffect(micPressed ? 0.9 : 1.0)
             .contentShape(Circle())
             .gesture(

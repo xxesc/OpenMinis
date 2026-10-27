@@ -36,6 +36,8 @@ extension AIChatView {
                 .accessibilityLabel(Text("Add attachment", comment: "VoiceOver label for the attachment button"))
         }
         .buttonStyle(.plain)
+        .frame(width: 36, height: 36)
+        .padding(.bottom, 3)
         .popover(isPresented: $showComposerQuickMenu, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
             composerQuickActionsPopup
                 .modifier(ComposerPopoverCompactAdaptation())
@@ -45,7 +47,7 @@ extension AIChatView {
     /// Trailing action group outside the composer (mic or send button).
     @ViewBuilder
     var trailingActionGroup: some View {
-        HStack(spacing: 8) {
+        ZStack {
             if voiceInputActive || speechManager.state == .recording || (!canSend && !vm.isProcessing) {
                 micButtonContainer
                     .transition(.scale(scale: 0.85).combined(with: .opacity))
@@ -54,6 +56,8 @@ extension AIChatView {
                     .transition(.scale(scale: 0.85).combined(with: .opacity))
             }
         }
+        .frame(width: 36, height: 36)
+        .padding(.bottom, 3)
     }
 
     /// Bottom toolbar under the text field (+ / edit-exit / unified send-or-mic).
@@ -352,8 +356,9 @@ extension AIChatView {
                     }
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .frame(minHeight: 42)
             return AnyView(waveform)
         }
         _ = returnKeyBehavior  // [T-send-longpress-return-mode] dependency, see declaration
@@ -450,8 +455,9 @@ extension AIChatView {
                 field.fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 4)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10.5)
+        .frame(minHeight: 42)
         .overlay(alignment: .top) {
             if composerResizeEnabled { composerResizeHandle }
         }
