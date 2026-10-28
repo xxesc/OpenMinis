@@ -116,20 +116,20 @@ struct ChatSendButton: View {
             if isWaitingToSendVoice {
                 ZStack {
                     Image(systemName: "circle.fill")
-                        .font(.system(size: 38))
+                        .font(.system(size: 48))
                         .foregroundStyle(ChatColors.sendButtonDisabled)
                     ProgressView()
                         .controlSize(.small)
                 }
-                .frame(width: 38, height: 38)
+                .frame(width: 48, height: 48)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(Text("Transcribing, then sending…", comment: "Voice input: status while a tapped Send waits for speech recognition to finish"))
             } else if vm.isProcessing && canEnqueue {
                 returnModeMenu(primaryAction: onEnqueue) {
                     Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 38))
+                        .font(.system(size: 48))
                         .foregroundStyle(ChatColors.sendButton)
-                        .frame(width: 38, height: 38)
+                        .frame(width: 48, height: 48)
                 }
                 .accessibilityLabel(Text("Add to queue", comment: "VoiceOver label for the send button while a reply is generating"))
                 .accessibilityHint(Text("Queues this message to send after the current reply finishes", comment: "VoiceOver hint for the queue button"))
@@ -162,9 +162,9 @@ struct ChatSendButton: View {
                     }
                 }) {
                     Image(systemName: "stop.circle.fill")
-                        .font(.system(size: 38))
+                        .font(.system(size: 48))
                         .foregroundStyle(.red)
-                        .frame(width: 38, height: 38)
+                        .frame(width: 48, height: 48)
                 }
                 // Hosted here rather than on the chat root: this button owns the
                 // decision, and the existing "Task Running" alert up there belongs
@@ -209,9 +209,9 @@ struct ChatSendButton: View {
                 // typing is the common case). The tap is gated instead.
                 returnModeMenu(primaryAction: { if canSend { onSend() } }) {
                     Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 38))
+                        .font(.system(size: 48))
                         .foregroundStyle(canSend ? ChatColors.sendButton : ChatColors.sendButtonDisabled)
-                        .frame(width: 38, height: 38)
+                        .frame(width: 48, height: 48)
                 }
                 .accessibilityLabel(Text("Send", comment: "VoiceOver label for the send button"))
             }

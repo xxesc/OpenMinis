@@ -29,15 +29,15 @@ extension AIChatView {
             showComposerQuickMenu.toggle()
         } label: {
             Image(systemName: "plus")
-                .font(.system(size: 19, weight: .medium))
+                .font(.system(size: 24, weight: .regular))
                 .foregroundStyle(ChatColors.secondaryText)
-                .frame(width: 38, height: 38)
+                .frame(width: 48, height: 48)
                 .modifier(ComposerActionGlass(isCircle: true))
                 .accessibilityLabel(Text("Add attachment", comment: "VoiceOver label for the attachment button"))
         }
         .buttonStyle(.plain)
-        .frame(width: 38, height: 38)
-        .padding(.bottom, 8.5)
+        .frame(width: 48, height: 48)
+        .padding(.bottom, 3.5)
         .popover(isPresented: $showComposerQuickMenu, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
             composerQuickActionsPopup
                 .modifier(ComposerPopoverCompactAdaptation())
@@ -56,8 +56,8 @@ extension AIChatView {
                     .transition(.scale(scale: 0.85).combined(with: .opacity))
             }
         }
-        .frame(width: 38, height: 38)
-        .padding(.bottom, 8.5)
+        .frame(width: 48, height: 48)
+        .padding(.bottom, 3.5)
     }
 
     /// Bottom toolbar under the text field (+ / edit-exit / unified send-or-mic).
